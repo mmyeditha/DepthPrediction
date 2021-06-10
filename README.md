@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Deeper Depth Prediction with Fully Convolutional Residual Networks
 
 By [Iro Laina](http://campar.in.tum.de/Main/IroLaina), [Christian Rupprecht](http://campar.in.tum.de/Main/ChristianRupprecht), [Vasileios Belagiannis](http://www.robots.ox.ac.uk/~vb/), [Federico Tombari](http://campar.in.tum.de/Main/FedericoTombari), [Nassir Navab](http://campar.in.tum.de/Main/NassirNavab).
@@ -112,3 +113,16 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+=======
+# DepthPrediction-CoreML Variant
+### By: Neel Dhulipala, Mario Gergis, and Merwan Yeditha
+### Adapted from tucan9389
+
+An implementation of the FCRN CoreML library created by tucan9389 and modified for obstacle detection and dynamic feedback based on distance of objects. The purpose of this fork is to focus the project more on object detection while moving.
+
+This app contains multiple presets for ways to process the image, each of which contain two views. One is a preview of the camera output, and the bottom image is the resultant matrix of distances after processing the top image through the FCRN neural network. Our additions to this application currently include:
+
+- Haptic and audio feedback based on distances of objects
+- Readout of distance value at top of screen
+- Other usability features
+>>>>>>> a42ab07b2bc3937835ea76455c27d6f2abcf5278
