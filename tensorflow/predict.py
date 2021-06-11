@@ -49,9 +49,9 @@ def predict(model_data_path, img):
         pred = sess.run(net.get_output(), feed_dict={input_node: img})
         
         # Plot result
-        fig = plt.figure()
-        ii = plt.imshow(pred[0,:,:,0], interpolation='nearest')
-        fig.colorbar(ii)
+        #fig = plt.figure()
+        #ii = plt.imshow(pred[0,:,:,0], interpolation='nearest')
+        #fig.colorbar(ii)
 
         return pred
         #cv_img = FigureCanvas(fig)
