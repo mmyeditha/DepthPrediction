@@ -21,6 +21,7 @@ class LiveImageViewController: UIViewController {
     @IBOutlet weak var fpsLabel: UILabel!
     
     @IBOutlet weak var depthSlider: UISlider!
+    
     // MARK: - AV Properties
     var videoCapture: VideoCapture!
     
@@ -36,6 +37,13 @@ class LiveImageViewController: UIViewController {
     
     // MARK: - Performance Measurement Property
     private let measure = Measure()
+    
+    // MARK: - Haptics Variables
+    let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+    var lastImpactTime = Date()
+    var desiredInterval: Double?
+    var hapticTimer: Timer?
+    
     
     // MARK: - View Controller Life Cycle
     override func viewDidLoad() {
@@ -105,12 +113,50 @@ class LiveImageViewController: UIViewController {
         resizePreviewLayer()
     }
     
+    func playSystemSound(id: Int) {
+            AudioServicesPlaySystemSound(SystemSoundID(id))
+    }
+    
+    func haptic(time: Double) {
+        hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
+                    if let desiredInterval = self.desiredInterval {
+                        if -self.lastImpactTime.timeIntervalSinceNow > desiredInterval {
+                            self.feedbackGenerator.impactOccurred()
+                            self.playSystemSound(id: 1103)
+                            self.lastImpactTime = Date()
+                        }
+                    }
+                }
+    }
+    
     func resizePreviewLayer() {
         let bounds = videoPreview.bounds
         videoCapture.previewLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
         videoCapture.previewLayer?.bounds = bounds
         videoCapture.previewLayer?.position = CGPoint(x:bounds.midX, y:bounds.midY)
     }
+    
+    func getArrayOfBytesFromImage(imageData:NSData) -> Array<UInt8>
+    {
+
+      // the number of elements:
+      let count = imageData.length / MemoryLayout<Int8>.size
+
+      // create array of appropriate length:
+      var bytes = [UInt8](repeating: 0, count: count)
+
+      // copy bytes into array
+      imageData.getBytes(&bytes, length:count * MemoryLayout<Int8>.size)
+
+      var byteArray:Array = Array<UInt8>()
+
+      for i in 0 ..< count {
+        byteArray.append(bytes[i])
+      }
+
+      return byteArray
+    }
+
 }
 
 // MARK: - VideoCaptureDelegate
@@ -141,15 +187,27 @@ extension LiveImageViewController {
     func visionRequestDidComplete(request: VNRequest, error: Error?) {
         
         self.measure.label(with: "endInference")
-        
-        
         if let observations = request.results as? [VNCoreMLFeatureValueObservation],
             let array = observations.first?.featureValue.multiArrayValue,
             let map = try? array.reshaped(to: [1,224,224]),
             let image = map.image(min: Double(depthMax), max: 0, channel: nil, axes: nil)
+            
         {
+//            let data = image.pngData()
+//            let bytes = getArrayOfBytesFromImage(imageData: data! as NSData)
+//            let datos: NSData = NSData(bytes: bytes, length: bytes.count)
+//            print(datos.length)
+            let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
+            let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
+            let output = Array(doubleBuffer)
+            let midpt = output[Int(map.count/2)]
+            
+            
             DispatchQueue.main.async { [weak self] in
                 self?.drawingView.image = image
+                self?.desiredInterval = Double(midpt/3)
+                print("Running <3 interval is \(self!.desiredInterval!)")
+                self?.haptic(time: NSTimeIntervalSince1970)
                 // end of measure
                 self?.measure.stop()
             }
@@ -160,7 +218,7 @@ extension LiveImageViewController {
     }
 }
 
-// MARK: - 📏(Performance Measurement) Delegate
+// MARK: - Performance Measurement Delegate
 extension LiveImageViewController: MeasureDelegate {
     func updateMeasure(inferenceTime: Double, executionTime: Double, fps: Int) {
         //print(executionTime, fps)

@@ -46,6 +46,7 @@
 		0D9A36562367EFD5000FDDB4 /* MLMultiArray+Image.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MLMultiArray+Image.swift"; sourceTree = "<group>"; };
 		0D9A366423683070000FDDB4 /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FastDepth.mlmodel; sourceTree = "<group>"; };
 		0D9B23F523A764B000824853 /* FastDepth-CoreML.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "FastDepth-CoreML.entitlements"; sourceTree = "<group>"; };
+		320D50442673A33D00C061E3 /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = opencv2.framework; path = ../../Downloads/opencv2.framework; sourceTree = "<group>"; };
 		71BBE01322E2D2EB00E74F11 /* FastDepth-CoreML.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "FastDepth-CoreML.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		71BBE01622E2D2EB00E74F11 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		71BBE01B22E2D2EB00E74F11 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -96,11 +97,20 @@
 			path = CoreMLHelpers;
 			sourceTree = "<group>";
 		};
+		320D50432673A33D00C061E3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				320D50442673A33D00C061E3 /* opencv2.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		71BBE00A22E2D2EB00E74F11 = {
 			isa = PBXGroup;
 			children = (
 				71BBE01522E2D2EB00E74F11 /* FastDepth-CoreML */,
 				71BBE01422E2D2EB00E74F11 /* Products */,
+				320D50432673A33D00C061E3 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
