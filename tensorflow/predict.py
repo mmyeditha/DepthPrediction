@@ -24,6 +24,9 @@ def predict(model_data_path, img):
     img = np.array(img).astype('float32')
     img = np.expand_dims(np.asarray(img), axis = 0)
    
+    # Reset graph
+    tf.reset_default_graph()
+
     # Create a placeholder for the input image
     input_node = tf.placeholder(tf.float32, shape=(None, height, width, channels))
 

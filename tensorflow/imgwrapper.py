@@ -24,5 +24,10 @@ def run_image():
 				new_pred[i][j] = (new_a/max)*255
 
 		cv2.imshow('img', new_pred)
-		cv2.waitKey(0)
-		cv2.destroyAllWindows()
+		if cv2.waitKey(33) == ord('a'):
+			cv2.destroyAllWindows()
+		elif cv2.waitKey(33) == ord('32'):
+			cv2.destroyAllWindows()
+			break
+
+run_image()

@@ -1,1 +1,11 @@
-tensorflow/models
+# Ignoring Tensorflow model files, too large to store
+tensorflow/models/NYU_FCRN.ckpt.data-00000-of-00001
+tensorflow/models/NYU_FCRN.ckpt.index
+tensorflow/models/NYU_FCRN.ckpt.meta
+
+# Ignoring pycache and DSStore
+.DSStore
+.DS_Store
+tensorflow/.DS_Store
+tensorflow/__pycache__  
+__pycache__/*
