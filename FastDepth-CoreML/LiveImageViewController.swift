@@ -35,7 +35,7 @@ class LiveImageViewController: UIViewController {
     var depthMax : Float = 4;
     
     // MARK: - Performance Measurement Property
-    private let 👨‍🔧 = 📏()
+    private let measure = Measure()
     
     // MARK: - View Controller Life Cycle
     override func viewDidLoad() {
@@ -48,7 +48,7 @@ class LiveImageViewController: UIViewController {
         setUpCamera()
         
         // setup delegate for performance measurement
-        👨‍🔧.delegate = self
+        measure.delegate = self
         
         depthSlider.setValue(depthMax, animated: true)
     }
@@ -120,7 +120,7 @@ extension LiveImageViewController: VideoCaptureDelegate {
         // the captured image from camera is contained on pixelBuffer
         if let pixelBuffer = pixelBuffer {
             // start of measure
-            self.👨‍🔧.🎬👏()
+            self.measure.start()
              predict(with: pixelBuffer)
         }
     }
@@ -140,7 +140,7 @@ extension LiveImageViewController {
     // post-processing
     func visionRequestDidComplete(request: VNRequest, error: Error?) {
         
-        self.👨‍🔧.🏷(with: "endInference")
+        self.measure.label(with: "endInference")
         
         
         if let observations = request.results as? [VNCoreMLFeatureValueObservation],
@@ -151,17 +151,17 @@ extension LiveImageViewController {
             DispatchQueue.main.async { [weak self] in
                 self?.drawingView.image = image
                 // end of measure
-                self?.👨‍🔧.🎬🤚()
+                self?.measure.stop()
             }
         } else {
             // end of measure
-            self.👨‍🔧.🎬🤚()
+            self.measure.stop()
         }
     }
 }
 
 // MARK: - 📏(Performance Measurement) Delegate
-extension LiveImageViewController: 📏Delegate {
+extension LiveImageViewController: MeasureDelegate {
     func updateMeasure(inferenceTime: Double, executionTime: Double, fps: Int) {
         //print(executionTime, fps)
         self.inferenceLabel.text = "inference: \(Int(inferenceTime*1000.0)) mm"
