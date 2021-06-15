@@ -1,11 +1,7 @@
-# DepthPrediction-CoreML Variant
-### By: Neel Dhulipala, Mario Gergis, and Merwan Yeditha
-### Adapted from tucan9389
+# FastDepth-CoreML
+This is a CoreML version of [FastDepth: Fast Monocular Depth Estimation on Embedded Systems](https://github.com/dwofk/fast-depth). I do not guarantee the correctness of my conversion.  
+The iOS project is based on tucan9389's [DepthPrediction](https://github.com/tucan9389/DepthPrediction-CoreML), but with [CoreMLHelpers](https://github.com/hollance/CoreMLHelpers/) for convenience.
 
-An implementation of the FCRN CoreML library created by tucan9389 and modified for obstacle detection and dynamic feedback based on distance of objects. The purpose of this fork is to focus the project more on object detection while moving.
-
-This app contains multiple presets for ways to process the image, each of which contain two views. One is a preview of the camera output, and the bottom image is the resultant matrix of distances after processing the top image through the FCRN neural network. Our additions to this application currently include:
-
-- Haptic and audio feedback based on distances of objects
-- Readout of distance value at top of screen
-- Other usability features
+# Example
+Recorded on an iPhone X.  
+![](Assets/demo.gif)
