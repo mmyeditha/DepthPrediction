@@ -19,7 +19,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     // Vision properties
     var request: VNCoreMLRequest?
     var visionModel: VNCoreMLModel?
-    let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
+    //let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
 
     private override init() {
         super.init()
@@ -43,16 +43,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         // Capture the scene image
-        var isEmpty = true
-        
-        if isEmpty {
-            queue.async {
-                    isEmpty = false
-                    let framee = frame.capturedImage
-                    self.predict(with: framee)
-            }
-            isEmpty = true
-        }
+        let framee = frame.capturedImage
+        self.predict(with: framee)
         
         
     }
@@ -75,27 +67,37 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         {
             // Uncomment below to save every frame to camera roll
             //UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
-            // Sends signal to update image
             self.img = image
+            // Sends signal to update image
+            objectWillChange
+                .receive(on: DispatchQueue.main)
+                .eraseToAnyPublisher()
             objectWillChange.send()
             // UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
             let output = Array(doubleBuffer)
-            var imgArray = [[Float]]()
-            var row = [Float]()
-            
-            // Converting 1D array to 2D array of pixel values
-            for i in 0...223 {
-                for j in 0...223 {
-                    row.append(output[i*224+j])
-                }
-                imgArray.append(row)
-                row = []
-            }
-            
+            let imgArray = convert1DTo2D(linspace: output)
             let midpt = imgArray[112][112]
             print("midpt \(midpt)")
         }
     }
+    
+    // Converts a 1x50176 array of floats to a 224x224 array
+    func convert1DTo2D(linspace: Array<Float>) -> [[Float]] {
+        var newArray = [[Float]]()
+        var row = [Float]()
+        
+        // Conversion of 1D to 2D by reading off rows and appending them to new array
+        for i in 0...223 {
+            for j in 0...223 {
+                row.append(linspace[i*224+j])
+            }
+            newArray.append(row)
+            row = []
+        }
+        
+        return newArray
+    }
+    
 }
