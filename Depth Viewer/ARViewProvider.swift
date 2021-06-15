@@ -19,7 +19,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     // Vision properties
     var request: VNCoreMLRequest?
     var visionModel: VNCoreMLModel?
-    //let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
+    let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
+    var isEmpty = true
 
     private override init() {
         super.init()
@@ -42,10 +43,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        // Capture the scene image
-        let framee = frame.capturedImage
-        self.predict(with: framee)
         
+        if isEmpty {
+            isEmpty = false
+            queue.async {
+                // Capture the scene image
+                let framee = frame.capturedImage
+                self.predict(with: framee)
+                self.isEmpty = true
+            }
+            
+        }
         
     }
     
@@ -69,16 +77,34 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             //UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
             self.img = image
             // Sends signal to update image
-            objectWillChange
-                .receive(on: DispatchQueue.main)
-                .eraseToAnyPublisher()
-            objectWillChange.send()
             // UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
             let output = Array(doubleBuffer)
             let imgArray = convert1DTo2D(linspace: output)
             let midpt = imgArray[112][112]
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+            
+            
+            /// Paul showing us how to store AppData
+            
+//            var points : [simd_float3] = []
+//            points.append(simd_float3(1,3,3))
+//            points.append(simd_float3(3,4,2))
+//
+//            var pointCloud = ""
+//            for p in points {
+//                pointCloud += "\(p.x), \(p.y), \(p.z)\n"
+//            }
+//            let currentFileName = "mycloud.csv"
+//            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+//            let url = documentsDirectory.appendingPathComponent(currentFileName)
+//            if let cloudData = pointCloud.data(using: .utf8) {
+//                try? cloudData.write(to: url, options: [.atomic])
+//            }
+
             print("midpt \(midpt)")
         }
     }
