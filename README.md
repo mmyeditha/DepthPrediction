@@ -9,3 +9,5 @@ This app contains multiple presets for ways to process the image, each of which 
 - Haptic and audio feedback based on distances of objects
 - Readout of distance value at top of screen
 - Other usability features
+
+[mlmodel download](https://drive.google.com/file/d/16NV8gUvvrlmhgFT9hrrEkAetp-BAKGlG/view?usp=sharing)
