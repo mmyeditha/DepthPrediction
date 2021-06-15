@@ -25,8 +25,10 @@ struct ContentView : View {
 //            })
             ARViewContainer()
                 .edgesIgnoringSafeArea(.all)
+            
             if let img = viewProvider.img {
                 Image(uiImage: img)
+                    .rotationEffect(.degrees(90))
             }
         }
         

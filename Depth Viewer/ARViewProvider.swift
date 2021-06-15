@@ -15,15 +15,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     public static var shared = ARViewProvider()
     let arView = ARView(frame: .zero)
     let estimationModel = FastDepth()
-    var img: UIImage?
+    public var img: UIImage?
     // Vision properties
     var request: VNCoreMLRequest?
     var visionModel: VNCoreMLModel?
-    
+    let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
+
     private override init() {
         super.init()
-        arView.session.delegate = self
-        runModel()
+        self.arView.session.delegate = self
+        self.runModel()
+        
     }
     
     func runModel(){
@@ -41,8 +43,18 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         // Capture the scene image
-        let framee = frame.capturedImage
-        predict(with: framee)
+        var isEmpty = true
+        
+        if isEmpty {
+            queue.async {
+                    isEmpty = false
+                    let framee = frame.capturedImage
+                    self.predict(with: framee)
+            }
+            isEmpty = true
+        }
+        
+        
     }
     
     func predict(with pixelBuffer: CVPixelBuffer) {
@@ -51,6 +63,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         // vision framework configures the input size of image following our model's input configuration automatically
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
         try? handler.perform([request])
+        
     }
 
     func visionRequestDidComplete(request: VNRequest, error: Error?) {
@@ -62,10 +75,10 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         {
             // Uncomment below to save every frame to camera roll
             //UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
-            self.img = image
             // Sends signal to update image
+            self.img = image
             objectWillChange.send()
-            UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
+            // UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
             let output = Array(doubleBuffer)
@@ -85,5 +98,4 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             print("midpt \(midpt)")
         }
     }
-        
 }

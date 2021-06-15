@@ -65,7 +65,7 @@
 		32654E1E2677E59300D189FA /* Depth_ViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Depth_ViewerUITests.swift; sourceTree = "<group>"; };
 		32654E202677E59300D189FA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		32654E2C2677E67900D189FA /* LiveImageViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveImageViewController.swift; sourceTree = "<group>"; };
-		32654E2F2677E76A00D189FA /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; name = FastDepth.mlmodel; path = "../../../DepthPrediction-CoreML/Models/FastDepth.mlmodel"; sourceTree = "<group>"; };
+		32654E2F2677E76A00D189FA /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; name = FastDepth.mlmodel; path = ../../model/FastDepth.mlmodel; sourceTree = "<group>"; };
 		32654E312677E8E400D189FA /* Measure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Measure.swift; sourceTree = "<group>"; };
 		32654E332677F0FE00D189FA /* ARViewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARViewProvider.swift; sourceTree = "<group>"; };
 		32654E382677F6B500D189FA /* UIImage+RawBytes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIImage+RawBytes.swift"; sourceTree = "<group>"; };

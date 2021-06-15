@@ -6,6 +6,9 @@
 build/
 DerivedData/
 
+## mlmodel files
+models/
+
 ## Various settings
 *.pbxuser
 !default.pbxuser
