@@ -21,6 +21,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var visionModel: VNCoreMLModel?
     let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
     var isEmpty = true
+    var imgArr: [[Float]]?
 
     private override init() {
         super.init()
@@ -50,7 +51,13 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
+                if let arr = self.imgArr {
+                    let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
+                    
+                    print(ptCloud)
+                }
                 self.isEmpty = true
+                
             }
             
         }
@@ -81,8 +88,11 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
             let output = Array(doubleBuffer)
-            let imgArray = convert1DTo2D(linspace: output)
-            let midpt = imgArray[112][112]
+            self.imgArr = convert1DTo2D(linspace: output)
+            if let imgArr = self.imgArr {
+                let midpt = imgArr[112][112]
+                print("midpt \(midpt)")
+            }
             DispatchQueue.main.async {
                 self.objectWillChange.send()
             }
@@ -105,7 +115,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
 //                try? cloudData.write(to: url, options: [.atomic])
 //            }
 
-            print("midpt \(midpt)")
         }
     }
     
@@ -126,4 +135,18 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return newArray
     }
     
+    func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
+            let intrinsics = frame.camera.intrinsics
+            var ptCloud: [SIMD4<Float>] = []
+            // Replace with actual ranges in imgArray
+            for i in 0...223 {
+                for j in 0...223 {
+                    let ptVec: SIMD3 = [Float(i), Float(j), 1]
+                    let vec = ptVec * intrinsics
+                    let mag = sqrt(pow(vec[0], 2) + pow(vec[1], 2) + pow(vec[2], 2))
+                    ptCloud.append([vec[0]/mag, vec[1]/mag, vec[2]/mag, imgArray[i][j]])
+                }
+            }
+            return ptCloud
+        }
 }
