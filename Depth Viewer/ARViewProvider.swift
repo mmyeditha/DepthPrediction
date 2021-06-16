@@ -22,6 +22,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
     var isEmpty = true
     var imgArr: [[Float]]?
+    var sessionCount = 0
 
     private override init() {
         super.init()
@@ -51,10 +52,12 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
+                // Add to count
+                self.sessionCount += 1
                 if let arr = self.imgArr {
                     let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
-                    
-                    print(ptCloud)
+                    self.write(pointCloud: ptCloud, fileName: "mypointcloud\(self.sessionCount).csv")
+                    //print(ptCloud)
                 }
                 self.isEmpty = true
                 
@@ -136,17 +139,34 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
-            let intrinsics = frame.camera.intrinsics
-            var ptCloud: [SIMD4<Float>] = []
-            // Replace with actual ranges in imgArray
-            for i in 0...223 {
-                for j in 0...223 {
-                    let ptVec: SIMD3 = [Float(i), Float(j), 1]
-                    let vec = ptVec * intrinsics
-                    let mag = sqrt(pow(vec[0], 2) + pow(vec[1], 2) + pow(vec[2], 2))
-                    ptCloud.append([vec[0]/mag, vec[1]/mag, vec[2]/mag, imgArray[i][j]])
-                }
+        let intrinsics = frame.camera.intrinsics
+        var ptCloud: [SIMD4<Float>] = []
+        // Replace with actual ranges in imgArray
+        for i in 0...223 {
+            for j in 0...223 {
+                let ptVec: SIMD3 = [Float(i), Float(j), 1]
+                let vec = ptVec * intrinsics
+                let mag = sqrt(pow(vec[0], 2) + pow(vec[1], 2) + pow(vec[2], 2))
+                ptCloud.append([vec[0]/mag, vec[1]/mag, vec[2]/mag, imgArray[i][j]])
             }
-            return ptCloud
         }
+        return ptCloud
+    }
+    
+    // Write point cloud into a file for further review
+    func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String) -> Void {
+        // Initialize a string where data will be stored line-by-line
+        var pointCloudData = ""
+        for p in ptCloud {
+            pointCloudData += "\(p.x),\(p.y),\(p.z),\(p.w)\n"
+        }
+        // Save data to a file in AppData
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let url = documentsDirectory.appendingPathComponent(fileName)
+        if let cloudData = pointCloudData.data(using: .utf8) {
+            try? cloudData.write(to: url, options: [.atomic])
+        }
+        
+    }
+    
 }
