@@ -63,20 +63,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     }
                 }
                 self.isEmpty = true
-                
             }
-            
         }
-        
     }
     
     func predict(with pixelBuffer: CVPixelBuffer) {
         guard let request = request else { fatalError() }
-        
         // vision framework configures the input size of image following our model's input configuration automatically
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
         try? handler.perform([request])
-        
     }
 
     func buttonPress() {
@@ -84,52 +79,35 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     func visionRequestDidComplete(request: VNRequest, error: Error?) {
-        // Runs when the request has been sent
+        // Runs when the request has been sent to the Model
+        // This if statement checks that we have results for our MLModel request and
+        // sets variables to MLMultiArray that corresponds to the image output
         if let observations = request.results as? [VNCoreMLFeatureValueObservation],
             let array = observations.first?.featureValue.multiArrayValue,
             let map = try? array.reshaped(to: [1,224,224]),
             let image = map.image(min: Double(4), max: 0, channel: nil, axes: nil)
         {
-            // Uncomment below to save every frame to camera roll
-            //UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
             self.img = image
-            // Sends signal to update image
-            // UIImageWriteToSavedPhotosAlbum(image,nil,nil,nil);
+            // Process of converting array to bytearray
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
             let output = Array(doubleBuffer)
             self.imgArr = convert1DTo2D(linspace: output)
+            // Prints midpoint, not used now but can be used for haptics
             if let imgArr = self.imgArr {
                 let midpt = imgArr[112][112]
                 print("midpt \(midpt)")
             }
             DispatchQueue.main.async {
+                // Sends the signal that the variable is changing in the main Dispatch Queue
                 self.objectWillChange.send()
             }
-            
-            
-            /// Paul showing us how to store AppData
-            
-//            var points : [simd_float3] = []
-//            points.append(simd_float3(1,3,3))
-//            points.append(simd_float3(3,4,2))
-//
-//            var pointCloud = ""
-//            for p in points {
-//                pointCloud += "\(p.x), \(p.y), \(p.z)\n"
-//            }
-//            let currentFileName = "mycloud.csv"
-//            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-//            let url = documentsDirectory.appendingPathComponent(currentFileName)
-//            if let cloudData = pointCloud.data(using: .utf8) {
-//                try? cloudData.write(to: url, options: [.atomic])
-//            }
-
         }
     }
     
-    // Converts a 1x50176 array of floats to a 224x224 array
+    
     func convert1DTo2D(linspace: Array<Float>) -> [[Float]] {
+        // Converts a 1x50176 array of floats to a 224x224 array
         var newArray = [[Float]]()
         var row = [Float]()
         
@@ -146,17 +124,25 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
+        // Intrinsic matrix, refreshes often to update focal lengths with image stabilization
         let intrinsics = frame.camera.intrinsics
-            var ptCloud: [SIMD4<Float>] = []
-            // Replace with actual ranges in imgArray
+        // ptCloud is a list of 4x1 SIMD Floats
+        // elements 0, 1, and 2 represent the x, y, and z components of the unit vector respectively
+        // element 4 represents the corresponding depth value for that vector
+        var ptCloud: [SIMD4<Float>] = []
+            // The intrinsic matrix assumes a 4:3 aspect ratio. The image we have is 1:1, so we have to
+            // extrapolate extra pixels that we'll just fill with a 0 depth value
             for i in 0...299 {
                 for j in 0...223 {
+                    // Remapping original 4:3 resolution (varies by phone) to downscaled 4:3 resolution (299x223)
                     let iRemapped = (Float(i)/299.0)*Float(CVPixelBufferGetWidth(frame.capturedImage))
                     let jRemapped = (Float(j)/223.0)*Float(CVPixelBufferGetHeight(frame.capturedImage))
 
-                    
+                    // Convert pixel to vector and normalize
                     let ptVec: SIMD3 = [iRemapped, jRemapped, 1]
                     let vec = simd_normalize(intrinsics.inverse * ptVec)
+                    
+                    // Sets center of 4:3 image to have actual values, sides of 4:3 images are black
                     if i < 261 && i > 38 {
                         ptCloud.append(simd_float4(vec, imgArray[i-38][j]))
                     } else {
@@ -184,12 +170,10 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     func writeImg(image: UIImage, session: Int) {
+        // Writes image to application data
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        // choose a name for your image
         let fileName = "\(NSTimeIntervalSince1970)image\(session).jpg"
-        // create the destination file url to save your image
         let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        // get your UIImage jpeg data representation and check if the destination file url already exists
         if let data = image.jpegData(compressionQuality:  1.0),
           !FileManager.default.fileExists(atPath: fileURL.path) {
             do {

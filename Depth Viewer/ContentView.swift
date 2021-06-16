@@ -19,9 +19,9 @@ struct ContentView : View {
     var body: some View {
         VStack{
             Button(action: {
-                ARViewProvider.shared.runThing(frame: ARFrame)
+                ARViewProvider.shared.buttonPress()
             }, label: {
-                Text("Button")
+                Text("Generate Cloud")
             })
             ARViewContainer()
                 .edgesIgnoringSafeArea(.all)
