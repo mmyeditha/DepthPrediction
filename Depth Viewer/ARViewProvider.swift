@@ -36,6 +36,11 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
 
     private override init() {
         super.init()
+        let configuration = ARWorldTrackingConfiguration()
+        if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+            configuration.frameSemantics = [.smoothedSceneDepth, .sceneDepth]
+        }
+        self.arView.session.run(configuration)
         self.arView.session.delegate = self
         self.runModel()
     }
@@ -61,7 +66,19 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
-                
+                if let depthMap = frame.sceneDepth?.depthMap, let confMap = frame.sceneDepth?.confidenceMap {
+                    // Only capture point cloud if button pressed
+                    if self.buttonPressed {
+                        let pointCloud = saveSceneDepth(depthMapBuffer: depthMap, confMapBuffer: confMap)
+                        let xyz = pointCloud.getFastCloud(intrinsics: frame.camera.intrinsics, strideStep: 1, maxDepth: 1000, throwAwayPadding: 0, rgbWidth: CVPixelBufferGetWidth(framee), rgbHeight: CVPixelBufferGetHeight(framee))
+                        var transformedCloud: [simd_float4] = []
+                        for p in xyz {
+                            transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
+                        }
+                        self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv")
+                        self.buttonPressed = false
+                    }
+                }
                 
                 // Add to count
                 self.sessionCount += 1
