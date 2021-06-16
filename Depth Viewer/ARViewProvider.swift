@@ -88,6 +88,9 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             let image = map.image(min: Double(4), max: 0, channel: nil, axes: nil)
         {
             self.img = image
+            if self.buttonPressed{
+                writeImg(image: image, session: self.sessionCount)
+            }
             // Process of converting array to bytearray
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
