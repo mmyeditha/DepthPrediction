@@ -23,12 +23,12 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var isEmpty = true
     var imgArr: [[Float]]?
     var sessionCount = 0
+    var buttonPressed: Bool = false
 
     private override init() {
         super.init()
         self.arView.session.delegate = self
         self.runModel()
-        
     }
     
     func runModel(){
@@ -55,9 +55,12 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Add to count
                 self.sessionCount += 1
                 if let arr = self.imgArr {
-                    let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
-                    self.write(pointCloud: ptCloud, fileName: "mypointcloud\(self.sessionCount).csv")
-                    //print(ptCloud)
+                    if self.buttonPressed{
+                        let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
+                        self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv")
+                        //print(ptCloud)
+                        self.buttonPressed = false
+                    }
                 }
                 self.isEmpty = true
                 
@@ -76,6 +79,10 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         
     }
 
+    func buttonPress() {
+        self.buttonPressed = true
+    }
+    
     func visionRequestDidComplete(request: VNRequest, error: Error?) {
         // Runs when the request has been sent
         if let observations = request.results as? [VNCoreMLFeatureValueObservation],
@@ -140,16 +147,23 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
         let intrinsics = frame.camera.intrinsics
-        var ptCloud: [SIMD4<Float>] = []
-        // Replace with actual ranges in imgArray
-        for i in 0...223 {
-            for j in 0...223 {
-                let ptVec: SIMD3 = [Float(i), Float(j), 1]
-                let vec = ptVec * intrinsics
-                let mag = sqrt(pow(vec[0], 2) + pow(vec[1], 2) + pow(vec[2], 2))
-                ptCloud.append([vec[0]/mag, vec[1]/mag, vec[2]/mag, imgArray[i][j]])
+            var ptCloud: [SIMD4<Float>] = []
+            // Replace with actual ranges in imgArray
+            for i in 0...299 {
+                for j in 0...223 {
+                    let iRemapped = (Float(i)/299.0)*Float(CVPixelBufferGetWidth(frame.capturedImage))
+                    let jRemapped = (Float(j)/223.0)*Float(CVPixelBufferGetHeight(frame.capturedImage))
+
+                    
+                    let ptVec: SIMD3 = [iRemapped, jRemapped, 1]
+                    let vec = simd_normalize(intrinsics.inverse * ptVec)
+                    if i < 261 && i > 38 {
+                        ptCloud.append(simd_float4(vec, imgArray[i-38][j]))
+                    } else {
+                        ptCloud.append(simd_float4(vec, 0))
+                    }
+                }
             }
-        }
         return ptCloud
     }
     
@@ -168,5 +182,25 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
         
     }
+    
+    func writeImg(image: UIImage, session: Int) {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        // choose a name for your image
+        let fileName = "\(NSTimeIntervalSince1970)image\(session).jpg"
+        // create the destination file url to save your image
+        let fileURL = documentsDirectory.appendingPathComponent(fileName)
+        // get your UIImage jpeg data representation and check if the destination file url already exists
+        if let data = image.jpegData(compressionQuality:  1.0),
+          !FileManager.default.fileExists(atPath: fileURL.path) {
+            do {
+                // writes the image data to disk
+                try data.write(to: fileURL)
+                print("file saved")
+            } catch {
+                print("error saving file:", error)
+            }
+        }
+    }
+
     
 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = 32419277267A5C03006508FD /* FastDepth.mlmodel */; };
 		32654E002677E59000D189FA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654DFF2677E59000D189FA /* AppDelegate.swift */; };
 		32654E022677E59000D189FA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E012677E59000D189FA /* ContentView.swift */; };
 		32654E042677E59000D189FA /* Experience.rcproject in Sources */ = {isa = PBXBuildFile; fileRef = 32654E032677E59000D189FA /* Experience.rcproject */; };
@@ -15,7 +16,6 @@
 		32654E142677E59300D189FA /* Depth_ViewerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E132677E59300D189FA /* Depth_ViewerTests.swift */; };
 		32654E1F2677E59300D189FA /* Depth_ViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E1E2677E59300D189FA /* Depth_ViewerUITests.swift */; };
 		32654E2D2677E67900D189FA /* LiveImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E2C2677E67900D189FA /* LiveImageViewController.swift */; };
-		32654E302677E76A00D189FA /* FastDepth.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = 32654E2F2677E76A00D189FA /* FastDepth.mlmodel */; };
 		32654E322677E8E400D189FA /* Measure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E312677E8E400D189FA /* Measure.swift */; };
 		32654E342677F0FE00D189FA /* ARViewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E332677F0FE00D189FA /* ARViewProvider.swift */; };
 		32654E452677F6B500D189FA /* UIImage+RawBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E382677F6B500D189FA /* UIImage+RawBytes.swift */; };
@@ -51,6 +51,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		32419277267A5C03006508FD /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FastDepth.mlmodel; sourceTree = "<group>"; };
 		32654DFC2677E59000D189FA /* Depth Viewer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Depth Viewer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		32654DFF2677E59000D189FA /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		32654E012677E59000D189FA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -65,7 +66,6 @@
 		32654E1E2677E59300D189FA /* Depth_ViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Depth_ViewerUITests.swift; sourceTree = "<group>"; };
 		32654E202677E59300D189FA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		32654E2C2677E67900D189FA /* LiveImageViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveImageViewController.swift; sourceTree = "<group>"; };
-		32654E2F2677E76A00D189FA /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; name = FastDepth.mlmodel; path = "Depth Viewer/model/FastDepth.mlmodel"; sourceTree = SOURCE_ROOT; };
 		32654E312677E8E400D189FA /* Measure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Measure.swift; sourceTree = "<group>"; };
 		32654E332677F0FE00D189FA /* ARViewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARViewProvider.swift; sourceTree = "<group>"; };
 		32654E382677F6B500D189FA /* UIImage+RawBytes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIImage+RawBytes.swift"; sourceTree = "<group>"; };
@@ -175,7 +175,7 @@
 		32654E2E2677E72300D189FA /* mlmodel */ = {
 			isa = PBXGroup;
 			children = (
-				32654E2F2677E76A00D189FA /* FastDepth.mlmodel */,
+				32419277267A5C03006508FD /* FastDepth.mlmodel */,
 			);
 			path = mlmodel;
 			sourceTree = "<group>";
@@ -333,6 +333,7 @@
 				32654E4C2677F6B500D189FA /* Array+Extensions.swift in Sources */,
 				32654E342677F0FE00D189FA /* ARViewProvider.swift in Sources */,
 				32654E502677F6B500D189FA /* MLMultiArray+Image.swift in Sources */,
+				32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */,
 				32654E002677E59000D189FA /* AppDelegate.swift in Sources */,
 				32654E492677F6B500D189FA /* CGImage+CVPixelBuffer.swift in Sources */,
 				32654E322677E8E400D189FA /* Measure.swift in Sources */,
@@ -348,7 +349,6 @@
 				32654E452677F6B500D189FA /* UIImage+RawBytes.swift in Sources */,
 				32654E462677F6B500D189FA /* UIImage+CVPixelBuffer.swift in Sources */,
 				32654E472677F6B500D189FA /* NonMaxSuppression.swift in Sources */,
-				32654E302677E76A00D189FA /* FastDepth.mlmodel in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

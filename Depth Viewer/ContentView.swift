@@ -18,11 +18,11 @@ struct ContentView : View {
     @ObservedObject var viewProvider: ARViewProvider = ARViewProvider.shared
     var body: some View {
         VStack{
-//            Button(action: {
-//                ARViewProvider.shared.runThing(frame: ARFrame)
-//            }, label: {
-//                Text("Button")
-//            })
+            Button(action: {
+                ARViewProvider.shared.runThing(frame: ARFrame)
+            }, label: {
+                Text("Button")
+            })
             ARViewContainer()
                 .edgesIgnoringSafeArea(.all)
             
