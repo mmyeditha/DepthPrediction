@@ -24,6 +24,13 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var imgArr: [[Float]]?
     var sessionCount = 0
     var buttonPressed: Bool = false
+    
+    // Haptics Variables
+    let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+    var lastImpactTime = Date()
+    var desiredInterval: Double?
+    var hapticTimer: Timer?
+
 
     private override init() {
         super.init()
@@ -100,10 +107,13 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             if let imgArr = self.imgArr {
                 let midpt = imgArr[112][112]
                 print("midpt \(midpt)")
-            }
-            DispatchQueue.main.async {
-                // Sends the signal that the variable is changing in the main Dispatch Queue
-                self.objectWillChange.send()
+                DispatchQueue.main.async {
+                    // Sends the signal that the variable is changing in the main Dispatch Queue
+                    self.objectWillChange.send()
+                    // Plays haptics
+                    self.desiredInterval = Double(midpt/5)
+                    self.haptic(time: NSTimeIntervalSince1970)
+                }
             }
         }
     }
@@ -187,6 +197,24 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 print("error saving file:", error)
             }
         }
+    }
+    
+    // Play haptics
+    func haptic(time: Double) {
+        hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
+            if let desiredInterval = self.desiredInterval {
+                if -self.lastImpactTime.timeIntervalSinceNow > desiredInterval {
+                    self.feedbackGenerator.impactOccurred()
+                    self.playSystemSound(id: 1103)
+                    self.lastImpactTime = Date()
+                }
+            }
+        }
+    }
+    
+    // Play audio cues
+    func playSystemSound(id: Int) {
+        AudioServicesPlaySystemSound(SystemSoundID(id));
     }
 
     
