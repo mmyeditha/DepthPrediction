@@ -8,7 +8,7 @@ This app displays the live camera output and a heatmap produced by a matrix of d
 - Generating point clouds based on these approximated distances
 - Updating code from using UIKit to SwiftUI
 
-![](Depth\ Viewer/Pictures/rendering_pointcloud)
+![](/Depth\ Viewer/Pictures/rendering_pointcloud.png)
 *Figure 1: Rendering a point cloud based on an image taken from the app*
 
 This app is a work in progress, with the eventual goal of being able to detect obstacles within a designated range.
