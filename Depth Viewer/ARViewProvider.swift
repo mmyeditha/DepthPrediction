@@ -10,6 +10,8 @@ import ARKit
 import RealityKit
 import VideoToolbox
 import Vision
+import Foundation
+import UIKit
 
 class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     public static var shared = ARViewProvider()
@@ -59,6 +61,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
+                
+                
                 // Add to count
                 self.sessionCount += 1
                 if let arr = self.imgArr {
@@ -66,6 +70,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv")
                         //print(ptCloud)
+                        let image = self.convert(cmage: CIImage(cvPixelBuffer: framee))
+                        self.writeImg(image: image, session: self.sessionCount)
                         self.buttonPressed = false
                     }
                 }
@@ -118,6 +124,12 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    func convert(cmage: CIImage) -> UIImage {
+         let context = CIContext(options: nil)
+         let cgImage = context.createCGImage(cmage, from: cmage.extent)!
+         let image = UIImage(cgImage: cgImage)
+         return image
+    }
     
     func convert1DTo2D(linspace: Array<Float>) -> [[Float]] {
         // Converts a 1x50176 array of floats to a 224x224 array
