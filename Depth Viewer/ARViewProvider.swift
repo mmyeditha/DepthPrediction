@@ -72,7 +72,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 if let depthMap = frame.sceneDepth?.depthMap, let confMap = frame.sceneDepth?.confidenceMap {
                     // Only capture point cloud if button pressed
                     if self.buttonPressed {
-                        let pointCloud = saveSceneDepth(depthMapBuffer: depthMap, confMapBuffer: confMap)
+                        let pointCloud = self.saveSceneDepth(depthMapBuffer: depthMap, confMapBuffer: confMap)
                         let xyz = pointCloud.getFastCloud(intrinsics: frame.camera.intrinsics, strideStep: 1, maxDepth: 1000, throwAwayPadding: 0, rgbWidth: CVPixelBufferGetWidth(framee), rgbHeight: CVPixelBufferGetHeight(framee))
                         var transformedCloud: [simd_float4] = []
                         for p in xyz {
