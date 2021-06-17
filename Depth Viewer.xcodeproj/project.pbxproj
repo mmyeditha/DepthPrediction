@@ -29,7 +29,6 @@
 		32654E4F2677F6B500D189FA /* Math.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E422677F6B500D189FA /* Math.swift */; };
 		32654E502677F6B500D189FA /* MLMultiArray+Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E432677F6B500D189FA /* MLMultiArray+Image.swift */; };
 		32654E512677F6B500D189FA /* MLMultiArray+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E442677F6B500D189FA /* MLMultiArray+Helpers.swift */; };
-		9847B497267A8A1700E81ECD /* Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9847B496267A8A1700E81ECD /* Helper.swift */; };
 		9847B499267A8A9100E81ECD /* PointCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9847B498267A8A9100E81ECD /* PointCloud.swift */; };
 /* End PBXBuildFile section */
 
@@ -79,7 +78,6 @@
 		32654E422677F6B500D189FA /* Math.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Math.swift; sourceTree = "<group>"; };
 		32654E432677F6B500D189FA /* MLMultiArray+Image.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MLMultiArray+Image.swift"; sourceTree = "<group>"; };
 		32654E442677F6B500D189FA /* MLMultiArray+Helpers.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "MLMultiArray+Helpers.swift"; sourceTree = "<group>"; };
-		9847B496267A8A1700E81ECD /* Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helper.swift; sourceTree = "<group>"; };
 		9847B498267A8A9100E81ECD /* PointCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloud.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -135,7 +133,6 @@
 				32654E2E2677E72300D189FA /* mlmodel */,
 				32654DFF2677E59000D189FA /* AppDelegate.swift */,
 				32654E332677F0FE00D189FA /* ARViewProvider.swift */,
-				9847B496267A8A1700E81ECD /* Helper.swift */,
 				9847B498267A8A9100E81ECD /* PointCloud.swift */,
 				32654E012677E59000D189FA /* ContentView.swift */,
 				32654E032677E59000D189FA /* Experience.rcproject */,
@@ -337,7 +334,6 @@
 				32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */,
 				32654E002677E59000D189FA /* AppDelegate.swift in Sources */,
 				32654E492677F6B500D189FA /* CGImage+CVPixelBuffer.swift in Sources */,
-				9847B497267A8A1700E81ECD /* Helper.swift in Sources */,
 				32654E4A2677F6B500D189FA /* Predictions.swift in Sources */,
 				32654E4B2677F6B500D189FA /* CGImagePropertyOrientation.swift in Sources */,
 				32654E4E2677F6B500D189FA /* CVPixelBuffer+Helpers.swift in Sources */,
