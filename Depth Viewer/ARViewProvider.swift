@@ -27,6 +27,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var imgArr: [[Float]]?
     var sessionCount = 0
     var buttonPressed: Bool = false
+    var sliderValue: Double = 0.5
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -107,10 +108,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
         try? handler.perform([request])
     }
-
-    func buttonPress() {
-        self.buttonPressed = true
-    }
     
     func visionRequestDidComplete(request: VNRequest, error: Error?) {
         // Runs when the request has been sent to the Model
@@ -145,6 +142,16 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    // - MARK: Debugging tools
+    func buttonPress() {
+        self.buttonPressed = true
+    }
+    
+    func updateSliderValue(sliderValue: Double) {
+        self.sliderValue = sliderValue
+    }
+    
+    // - MARK: Conversions
     func convert(cmage: CIImage) -> UIImage {
          let context = CIContext(options: nil)
          let cgImage = context.createCGImage(cmage, from: cmage.extent)!
@@ -169,6 +176,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return newArray
     }
     
+    // - MARK: Creating point cloud
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
         // Intrinsic matrix, refreshes often to update focal lengths with image stabilization
         let intrinsics = frame.camera.intrinsics
@@ -199,6 +207,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return ptCloud
     }
     
+    // - MARK: Writing data
     // Write point cloud into a file for further review
     func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String) -> Void {
         // Initialize a string where data will be stored line-by-line
@@ -232,7 +241,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
-    // Play haptics
+    // - MARK: Haptics and Audio
     func haptic(time: Double) {
         hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
             if let desiredInterval = self.desiredInterval {
