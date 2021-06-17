@@ -79,25 +79,30 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                             transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
                         }
                         self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv")
-                        self.buttonPressed = false
                     }
                 }
                 
                 // Add to count
-                self.sessionCount += 1
                 if let arr = self.imgArr {
                     // If phone is a LIDAR phone, this code gets ignored since button has already been pressed
                     // Otherwise, code is executed
                     if self.buttonPressed{
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv")
+                        print("Wrote the vector data")
                         //print(ptCloud)
                         let image = self.convert(cmage: CIImage(cvPixelBuffer: framee))
-                        self.writeImg(image: image, session: self.sessionCount)
+                        self.writeImg(image: image, session: self.sessionCount, label: "frame")
+                        print("Wrote the frame")
+                        if let img = self.img{
+                            self.writeImg(image: img, session: self.sessionCount, label: "depth")
+                            print("Wrote the depth in session")
+                        }
                         self.buttonPressed = false
                     }
                 }
                 self.isEmpty = true
+                self.sessionCount += 1
             }
         }
     }
@@ -119,9 +124,10 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             let image = map.image(min: Double(4), max: 0, channel: nil, axes: nil)
         {
             self.img = image
-            if self.buttonPressed{
-                writeImg(image: image, session: self.sessionCount)
-            }
+//            if self.buttonPressed{
+//                print("Wrote the depth data")
+//                writeImg(image: image, session: self.sessionCount)
+//            }
             // Process of converting array to bytearray
             let ptr = map.dataPointer.bindMemory(to: Float.self, capacity: map.count)
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
@@ -130,7 +136,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             // Prints midpoint, not used now but can be used for haptics
             if let imgArr = self.imgArr {
                 let midpt = imgArr[112][112]
-                print("midpt \(midpt)")
+                //print("midpt \(midpt)")
                 DispatchQueue.main.async {
                     // Sends the signal that the variable is changing in the main Dispatch Queue
                     self.objectWillChange.send()
@@ -224,17 +230,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         
     }
     
-    func writeImg(image: UIImage, session: Int) {
+    func writeImg(image: UIImage, session: Int, label: String) {
         // Writes image to application data
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let fileName = "\(NSTimeIntervalSince1970)image\(session).jpg"
+        let fileName = "\(NSTimeIntervalSince1970)\(label)image\(session).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(fileName)
         if let data = image.jpegData(compressionQuality:  1.0),
           !FileManager.default.fileExists(atPath: fileURL.path) {
             do {
                 // writes the image data to disk
                 try data.write(to: fileURL)
-                print("file saved")
+                //print("file saved")
             } catch {
                 print("error saving file:", error)
             }

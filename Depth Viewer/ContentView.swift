@@ -18,11 +18,12 @@ struct ContentView : View {
     @State var sliderValue = 0.5
     @ObservedObject var viewProvider: ARViewProvider = ARViewProvider.shared
     var body: some View {
-        VStack(alignment: .center) {
+        VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0, content: {
             Button(action: {
                 ARViewProvider.shared.buttonPress()
             }, label: {
                 Text("Generate Cloud")
+                    // .offset(x: 0, y: -30.0)
             })
             ARViewContainer()
             
@@ -38,8 +39,7 @@ struct ContentView : View {
             }))
             .padding(.all)
             Text("Depth sensitivity: \(sliderValue)")
-        }
-        
+        })
     }
     
     // Updates slider value in ARViewProvider
