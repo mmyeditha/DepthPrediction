@@ -15,8 +15,6 @@
 		32654E092677E59200D189FA /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32654E082677E59200D189FA /* Preview Assets.xcassets */; };
 		32654E142677E59300D189FA /* Depth_ViewerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E132677E59300D189FA /* Depth_ViewerTests.swift */; };
 		32654E1F2677E59300D189FA /* Depth_ViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E1E2677E59300D189FA /* Depth_ViewerUITests.swift */; };
-		32654E2D2677E67900D189FA /* LiveImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E2C2677E67900D189FA /* LiveImageViewController.swift */; };
-		32654E322677E8E400D189FA /* Measure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E312677E8E400D189FA /* Measure.swift */; };
 		32654E342677F0FE00D189FA /* ARViewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E332677F0FE00D189FA /* ARViewProvider.swift */; };
 		32654E452677F6B500D189FA /* UIImage+RawBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E382677F6B500D189FA /* UIImage+RawBytes.swift */; };
 		32654E462677F6B500D189FA /* UIImage+CVPixelBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654E392677F6B500D189FA /* UIImage+CVPixelBuffer.swift */; };
@@ -67,8 +65,6 @@
 		32654E1A2677E59300D189FA /* Depth ViewerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Depth ViewerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		32654E1E2677E59300D189FA /* Depth_ViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Depth_ViewerUITests.swift; sourceTree = "<group>"; };
 		32654E202677E59300D189FA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		32654E2C2677E67900D189FA /* LiveImageViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveImageViewController.swift; sourceTree = "<group>"; };
-		32654E312677E8E400D189FA /* Measure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Measure.swift; sourceTree = "<group>"; };
 		32654E332677F0FE00D189FA /* ARViewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARViewProvider.swift; sourceTree = "<group>"; };
 		32654E382677F6B500D189FA /* UIImage+RawBytes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIImage+RawBytes.swift"; sourceTree = "<group>"; };
 		32654E392677F6B500D189FA /* UIImage+CVPixelBuffer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIImage+CVPixelBuffer.swift"; sourceTree = "<group>"; };
@@ -142,8 +138,6 @@
 				9847B496267A8A1700E81ECD /* Helper.swift */,
 				9847B498267A8A9100E81ECD /* PointCloud.swift */,
 				32654E012677E59000D189FA /* ContentView.swift */,
-				32654E2C2677E67900D189FA /* LiveImageViewController.swift */,
-				32654E312677E8E400D189FA /* Measure.swift */,
 				32654E032677E59000D189FA /* Experience.rcproject */,
 				32654E052677E59200D189FA /* Assets.xcassets */,
 				32654E0A2677E59200D189FA /* Info.plist */,
@@ -343,14 +337,12 @@
 				32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */,
 				32654E002677E59000D189FA /* AppDelegate.swift in Sources */,
 				32654E492677F6B500D189FA /* CGImage+CVPixelBuffer.swift in Sources */,
-				32654E322677E8E400D189FA /* Measure.swift in Sources */,
 				9847B497267A8A1700E81ECD /* Helper.swift in Sources */,
 				32654E4A2677F6B500D189FA /* Predictions.swift in Sources */,
 				32654E4B2677F6B500D189FA /* CGImagePropertyOrientation.swift in Sources */,
 				32654E4E2677F6B500D189FA /* CVPixelBuffer+Helpers.swift in Sources */,
 				32654E512677F6B500D189FA /* MLMultiArray+Helpers.swift in Sources */,
 				32654E482677F6B500D189FA /* UIImage+Extensions.swift in Sources */,
-				32654E2D2677E67900D189FA /* LiveImageViewController.swift in Sources */,
 				32654E4F2677F6B500D189FA /* Math.swift in Sources */,
 				32654E4D2677F6B500D189FA /* CGImage+RawBytes.swift in Sources */,
 				32654E042677E59000D189FA /* Experience.rcproject in Sources */,

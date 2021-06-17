@@ -18,7 +18,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     let arView = ARView(frame: .zero)
     let estimationModel = FastDepth()
     public var img: UIImage?
-    // Vision properties
+    
+    // - MARK: Vision properties
     var request: VNCoreMLRequest?
     var visionModel: VNCoreMLModel?
     let queue = DispatchQueue(label: "info.queue", attributes: .concurrent)
@@ -27,13 +28,13 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var sessionCount = 0
     var buttonPressed: Bool = false
     
-    // Haptics Variables
+    // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
     var lastImpactTime = Date()
     var desiredInterval: Double?
     var hapticTimer: Timer?
 
-
+    // - MARK: App configuration
     private override init() {
         super.init()
         let configuration = ARWorldTrackingConfiguration()
@@ -58,14 +59,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    // - MARK: Running app session
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        
         if isEmpty {
             isEmpty = false
             queue.async {
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
+                // Block of code below only gets passed if the phone has LIDAR
                 if let depthMap = frame.sceneDepth?.depthMap, let confMap = frame.sceneDepth?.confidenceMap {
                     // Only capture point cloud if button pressed
                     if self.buttonPressed {
@@ -83,6 +85,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Add to count
                 self.sessionCount += 1
                 if let arr = self.imgArr {
+                    // If phone is a LIDAR phone, this code gets ignored since button has already been pressed
+                    // Otherwise, code is executed
                     if self.buttonPressed{
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv")
