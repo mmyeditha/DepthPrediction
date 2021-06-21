@@ -2,7 +2,7 @@
 //  ARViewProvide.swift
 //  Depth Viewer
 //
-//  Created by Merwan Yeditha on 6/14/21.
+//  Created by Neel Dhulipala, Mario Gergis, Merwan Yeditha on 6/14/21.
 //
 
 import SwiftUI
@@ -39,6 +39,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     private override init() {
         super.init()
         let configuration = ARWorldTrackingConfiguration()
+        // Initializes y-axis parallel to gravity
+        configuration.worldAlignment = .gravity
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.frameSemantics = [.smoothedSceneDepth, .sceneDepth]
         }
@@ -65,6 +67,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         if isEmpty {
             isEmpty = false
             queue.async {
+                // Capture phone and orientation (along the y-axis) in a vector
+                let (posVector, angle) = self.packPositionAndAngle(with: frame)
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
@@ -182,6 +186,30 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return newArray
     }
     
+    func packPositionAndAngle(with frame: ARFrame) -> (SIMD4<Float>, Float) {
+        // Has phone's position in the global coordinate system
+        let position = frame.camera.transform
+        // Define x, y, z positions
+        let x = position[3][0]
+        let y = position[3][1]
+        let z = position[3][2]
+        // Cos and Sin of the angle of the phone w.r.t. the y-axis defined below
+        let sin = position[2][2]
+        let cos = position[2][0]
+        let tan = sin/cos
+        var angle: Float
+        // Calculate angle
+        if cos >= 0 {
+            angle = atan(tan)
+        } else {
+            angle = Float.pi + atan(tan)
+        }
+        angle -= Float.pi/2
+        // Pack all four values into array and return it
+        let result: SIMD4<Float> = [x, y, z, 1.0]
+        return (result, angle)
+    }
+    
     // - MARK: Creating point cloud
     func saveSceneDepth(depthMapBuffer: CVPixelBuffer, confMapBuffer: CVPixelBuffer, getConfidenceLevels: Bool = true) -> PointCloud {
         let width = CVPixelBufferGetWidth(depthMapBuffer)
@@ -211,7 +239,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         let intrinsics = frame.camera.intrinsics
         // ptCloud is a list of 4x1 SIMD Floats
         // elements 0, 1, and 2 represent the x, y, and z components of the unit vector respectively
-        // element 4 represents the corresponding depth value for that vector
+        // element 3 represents the corresponding depth value for that vector
         var ptCloud: [SIMD4<Float>] = []
             // The intrinsic matrix assumes a 4:3 aspect ratio. The image we have is 1:1, so we have to
             // extrapolate extra pixels that we'll just fill with a 0 depth value
