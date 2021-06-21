@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  Depth Viewer
 //
-//  Created by Merwan Yeditha on 6/14/21.
+//  Created by Neel Dhulipala, Mario Gergis, and Merwan Yeditha on 6/14/21.
 //
 
 import SwiftUI
