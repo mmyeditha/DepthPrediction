@@ -29,6 +29,9 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var buttonPressed: Bool = false
     var sliderValue: Double = 0.5
     
+//    // Temp vars lol delete
+//    var transformList: [simd_float4x4] = []
+    
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
     var lastImpactTime = Date()
@@ -68,10 +71,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             isEmpty = false
             queue.async {
                 // Capture phone and orientation (along the y-axis) in a vector
-                let (posVector, angle) = self.packPositionAndAngle(with: frame)
+//                let (posVector, angle) = self.packPositionAndAngle(with: frame)
+//                self.write(pointCloud: [posVector], fileName: "pos")
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
+                
+//                // Adding transformation matrix to the list
+//                let transform = frame.camera.transform
+//                self.transformList.append(transform)
                 // Block of code below only gets passed if the phone has LIDAR
                 if let depthMap = frame.sceneDepth?.depthMap, let confMap = frame.sceneDepth?.confidenceMap {
                     // Only capture point cloud if button pressed
@@ -82,7 +90,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         for p in xyz {
                             transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
                         }
-                        self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv")
+                        self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv", frame: frame)
                     }
                 }
                 
@@ -92,7 +100,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     // Otherwise, code is executed
                     if self.buttonPressed{
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
-                        self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv")
+                        self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv", frame: frame)
                         print("Wrote the vector data")
                         //print(ptCloud)
                         let image = self.convert(cmage: CIImage(cvPixelBuffer: framee))
@@ -186,30 +194,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return newArray
     }
     
-    func packPositionAndAngle(with frame: ARFrame) -> (SIMD4<Float>, Float) {
-        // Has phone's position in the global coordinate system
-        let position = frame.camera.transform
-        // Define x, y, z positions
-        let x = position[3][0]
-        let y = position[3][1]
-        let z = position[3][2]
-        // Cos and Sin of the angle of the phone w.r.t. the y-axis defined below
-        let sin = position[2][2]
-        let cos = position[2][0]
-        let tan = sin/cos
-        var angle: Float
-        // Calculate angle
-        if cos >= 0 {
-            angle = atan(tan)
-        } else {
-            angle = Float.pi + atan(tan)
-        }
-        angle -= Float.pi/2
-        // Pack all four values into array and return it
-        let result: SIMD4<Float> = [x, y, z, 1.0]
-        return (result, angle)
-    }
-    
     // - MARK: Creating point cloud
     func saveSceneDepth(depthMapBuffer: CVPixelBuffer, confMapBuffer: CVPixelBuffer, getConfidenceLevels: Bool = true) -> PointCloud {
         let width = CVPixelBufferGetWidth(depthMapBuffer)
@@ -234,9 +218,31 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return PointCloud(width: width, height: height, depthData: depthCopy, confData: confCopy)
     }
     
+//    func writeTransforms(transform: [simd_float4x4]) {
+//        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+//        let fileName = "transform\(String(describing: session)).csv"
+//        let fileURL = documentsDirectory.appendingPathComponent(fileName)
+//        var transformListStr: String = ""
+//        for matrix in transformList {
+//            for row in 0...3 {
+//                for col in 0...3 {
+//                    transformListStr += "\(matrix[row][col]), "
+//                }
+//            }
+//            transformListStr += "\n"
+//        }
+//        if let data = transformListStr.data(using: .utf8) {
+//            try? data.write(to: fileURL, options: [.atomic])
+//        }
+//    }
+    
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
         // Intrinsic matrix, refreshes often to update focal lengths with image stabilization
         let intrinsics = frame.camera.intrinsics
+        // Transformation matrix to convert to global frame
+        let transform = frame.camera.transform
+        // Rotation matrix rotates the point 90 degrees CCW about the z-axis
+        let rotation: simd_float4x4 = simd_float4x4(simd_float4(0, 1, 0, 0), simd_float4(-1, 0, 0, 0), simd_float4(0, 0, 1, 0), simd_float4(0, 0, 0, 1))
         // ptCloud is a list of 4x1 SIMD Floats
         // elements 0, 1, and 2 represent the x, y, and z components of the unit vector respectively
         // element 3 represents the corresponding depth value for that vector
@@ -251,14 +257,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
 
                     // Convert pixel to vector and normalize
                     let ptVec: SIMD3 = [iRemapped, jRemapped, 1]
-                    let vec = simd_normalize(intrinsics.inverse * ptVec)
-                    
+                    var vec = simd_normalize(intrinsics.inverse * ptVec)
                     // Sets center of 4:3 image to have actual values, sides of 4:3 images are black
                     if i < 261 && i > 38 {
-                        ptCloud.append(simd_float4(vec, imgArray[i-38][j]))
+                        vec *= imgArray[i-38][j]
                     } else {
-                        ptCloud.append(simd_float4(vec, 0))
+                        vec *= 0
                     }
+                    ptCloud.append(rotation*simd_float4(-vec[0], vec[1], -vec[2], 1)*transform.transpose)
+                    
                 }
             }
         return ptCloud
@@ -266,7 +273,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     
     // - MARK: Writing data
     // Write point cloud into a file for further review
-    func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String) -> Void {
+    func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String, frame: ARFrame) -> Void {
+        let transform = frame.camera.transform
         // Initialize a string where data will be stored line-by-line
         var pointCloudData = ""
         for p in ptCloud {
@@ -278,7 +286,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         if let cloudData = pointCloudData.data(using: .utf8) {
             try? cloudData.write(to: url, options: [.atomic])
         }
-        
+        let ickUrl = documentsDirectory.appendingPathComponent("transformMatrix\(sessionCount).csv")
+        var transformString = ""
+        for i in 0...3 {
+            let row = transform[i]
+            transformString += "\(row[0]), \(row[1]), \(row[2]), \(row[3])\n"
+        }
+        if let rowData = transformString.data(using: .utf8) {
+            try? rowData.write(to: ickUrl, options: [.atomic])
+        }
     }
     
     func writeImg(image: UIImage, session: Int, label: String) {
