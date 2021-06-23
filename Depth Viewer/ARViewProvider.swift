@@ -16,8 +16,17 @@ import UIKit
 class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     public static var shared = ARViewProvider()
     let arView = ARView(frame: .zero)
-    let estimationModel = FastDepth()
     public var img: UIImage?
+    
+    let estimationModel: FastDepth = {
+        do {
+            let config = MLModelConfiguration()
+            return try FastDepth(configuration: config)
+        } catch {
+            print(error)
+            fatalError("Could not create FastDepth")
+        }
+    }()
     
     // - MARK: Vision properties
     var request: VNCoreMLRequest?
@@ -28,9 +37,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var sessionCount = 0
     var buttonPressed: Bool = false
     var sliderValue: Double = 0.5
-    
-//    // Temp vars lol delete
-//    var transformList: [simd_float4x4] = []
+    var featureString: String = ""
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -67,19 +74,31 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     
     // - MARK: Running app session
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        session.getCurrentWorldMap() {
+            (map, error) in
+            if let map = map {
+                let features = map.rawFeaturePoints.points
+                for feature in features {
+                    self.featureString += "\(feature.x), \(feature.y), \(feature.z), 1.0\n"
+                }
+            }
+        }
+        let transform = frame.camera.transform
+        print("Transform: \(transform[3])")
+        
         if isEmpty {
             isEmpty = false
             queue.async {
-                // Capture phone and orientation (along the y-axis) in a vector
-//                let (posVector, angle) = self.packPositionAndAngle(with: frame)
-//                self.write(pointCloud: [posVector], fileName: "pos")
                 // Capture the scene image
                 let framee = frame.capturedImage
+                // Capturing raw feature points that ARKit produces on features it can recognize
+//                if let features = frame.rawFeaturePoints?.points {
+//                    for feature in features {
+//                        self.featureString += "\(feature.x), \(feature.y), \(feature.z), 1.0\n"
+//                    }
+//                }
                 self.predict(with: framee)
                 
-//                // Adding transformation matrix to the list
-//                let transform = frame.camera.transform
-//                self.transformList.append(transform)
                 // Block of code below only gets passed if the phone has LIDAR
                 if let depthMap = frame.sceneDepth?.depthMap, let confMap = frame.sceneDepth?.confidenceMap {
                     // Only capture point cloud if button pressed
@@ -96,8 +115,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 
                 // Add to count
                 if let arr = self.imgArr {
-                    // If phone is a LIDAR phone, this code gets ignored since button has already been pressed
-                    // Otherwise, code is executed
+                    // Code is executed no matter if phone is a LiDAR or not when button is pressed
                     if self.buttonPressed{
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv", frame: frame)
@@ -110,11 +128,13 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                             self.writeImg(image: img, session: self.sessionCount, label: "depth")
                             print("Wrote the depth in session")
                         }
+                        self.writeFeaturePoints(features: self.featureString, session: self.sessionCount, frame: frame)
                         self.buttonPressed = false
                     }
                 }
                 self.isEmpty = true
                 self.sessionCount += 1
+                self.featureString = ""
             }
         }
     }
@@ -218,24 +238,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return PointCloud(width: width, height: height, depthData: depthCopy, confData: confCopy)
     }
     
-//    func writeTransforms(transform: [simd_float4x4]) {
-//        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-//        let fileName = "transform\(String(describing: session)).csv"
-//        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-//        var transformListStr: String = ""
-//        for matrix in transformList {
-//            for row in 0...3 {
-//                for col in 0...3 {
-//                    transformListStr += "\(matrix[row][col]), "
-//                }
-//            }
-//            transformListStr += "\n"
-//        }
-//        if let data = transformListStr.data(using: .utf8) {
-//            try? data.write(to: fileURL, options: [.atomic])
-//        }
-//    }
-    
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
         // Intrinsic matrix, refreshes often to update focal lengths with image stabilization
         let intrinsics = frame.camera.intrinsics
@@ -274,7 +276,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     // - MARK: Writing data
     // Write point cloud into a file for further review
     func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String, frame: ARFrame) -> Void {
-        let transform = frame.camera.transform
         // Initialize a string where data will be stored line-by-line
         var pointCloudData = ""
         for p in ptCloud {
@@ -285,15 +286,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         let url = documentsDirectory.appendingPathComponent(fileName)
         if let cloudData = pointCloudData.data(using: .utf8) {
             try? cloudData.write(to: url, options: [.atomic])
-        }
-        let ickUrl = documentsDirectory.appendingPathComponent("transformMatrix\(sessionCount).csv")
-        var transformString = ""
-        for i in 0...3 {
-            let row = transform[i]
-            transformString += "\(row[0]), \(row[1]), \(row[2]), \(row[3])\n"
-        }
-        if let rowData = transformString.data(using: .utf8) {
-            try? rowData.write(to: ickUrl, options: [.atomic])
         }
     }
     
@@ -312,6 +304,30 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 print("error saving file:", error)
             }
         }
+    }
+    
+    // Writes both the raw feature points of a session and the transform matrix
+    func writeFeaturePoints(features: String, session: Int, frame: ARFrame) -> Void {
+        // Writes a csv file to documents directory in application data
+        let transform = frame.camera.transform
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        // Writes the raw feature points into the documents directory
+        let featureURL = documentsDirectory.appendingPathComponent("features_\(session).csv")
+        if let featuresData = features.data(using: .utf8) {
+            try? featuresData.write(to: featureURL, options: [.atomic])
+        }
+        // Converts transform matrix into a string that can be written into a csv file
+        let transformUrl = documentsDirectory.appendingPathComponent("transformMatrix_\(session).csv")
+        var transformString = ""
+        for i in 0...3 {
+            let row = transform[i]
+            transformString += "\(row[0]), \(row[1]), \(row[2]), \(row[3])\n"
+        }
+        // Writes it into documents directory
+        if let rowData = transformString.data(using: .utf8) {
+            try? rowData.write(to: transformUrl, options: [.atomic])
+        }
+        
     }
     
     // - MARK: Haptics and Audio
