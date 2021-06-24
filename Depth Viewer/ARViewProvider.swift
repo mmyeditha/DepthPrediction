@@ -37,7 +37,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var sessionCount = 0
     var buttonPressed: Bool = false
     var sliderValue: Double = 0.5
-    var featureString: String = ""
+    var featureMat: [[Float]] = []
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -74,29 +74,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     
     // - MARK: Running app session
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        session.getCurrentWorldMap() {
-            (map, error) in
-            if let map = map {
-                let features = map.rawFeaturePoints.points
-                for feature in features {
-                    self.featureString += "\(feature.x), \(feature.y), \(feature.z), 1.0\n"
-                }
-            }
-        }
-        let transform = frame.camera.transform
-        print("Transform: \(transform[3])")
+        // Show the current position of phone relative to where it was when app started
+        //let transform = frame.camera.transform
+        //print("Transform: \(transform[3])")
         
         if isEmpty {
             isEmpty = false
             queue.async {
                 // Capture the scene image
                 let framee = frame.capturedImage
-                // Capturing raw feature points that ARKit produces on features it can recognize
-//                if let features = frame.rawFeaturePoints?.points {
-//                    for feature in features {
-//                        self.featureString += "\(feature.x), \(feature.y), \(feature.z), 1.0\n"
-//                    }
-//                }
                 self.predict(with: framee)
                 
                 // Block of code below only gets passed if the phone has LIDAR
@@ -128,13 +114,25 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                             self.writeImg(image: img, session: self.sessionCount, label: "depth")
                             print("Wrote the depth in session")
                         }
-                        self.writeFeaturePoints(features: self.featureString, session: self.sessionCount, frame: frame)
+                        // Capture raw feature points into a [[Float]] and write them
+                        session.getCurrentWorldMap() {
+                            (map, error) in
+                            if let map = map {
+                                let features = map.rawFeaturePoints.points
+                                for feature in features {
+                                    self.featureMat.append([feature[0], feature[1], feature[2], 1.0])
+                                }
+                            }
+                        }
+                        self.writeFeaturePoints(features: self.featureMat, session: self.sessionCount, frame: frame)
+                        // Set buttonPressed to false so that program knows the button is unpressed
                         self.buttonPressed = false
                     }
                 }
+                // Queue is empty, session can run again
                 self.isEmpty = true
                 self.sessionCount += 1
-                self.featureString = ""
+                self.featureMat = []
             }
         }
     }
@@ -165,10 +163,18 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             let doubleBuffer = UnsafeBufferPointer(start: ptr, count: map.count)
             let output = Array(doubleBuffer)
             self.imgArr = convert1DTo2D(linspace: output)
-            // Prints midpoint, not used now but can be used for haptics
+            // Prints midpoint, useful for haptics and grayscale calibration
+            /// - TODO:
+            /// - The grayscale from the depth map needs to be analyzed further; sometimes it tends to be
+            /// - linear when walking more slowly and sometimes the points appear to have a sinusoidal trend.
+            /// https://docs.google.com/spreadsheets/d/1jf8F6472G-slNE1-v3t4Ykklwg3-hIV7WwIFJ0UlQcM/edit?usp=sharing
+            /// - Link above goes to the graphs in question, where x is the session number and y is the pixel value.
+            /// - Figure 1 and Figure 2 are the same paths but at different speeds; however, my laptop was plugged in and
+            /// - the wall segment was pretty small.
+            /// - Find a clear wall in a room with a lot of space and analyze the graphs.
             if let imgArr = self.imgArr {
                 let midpt = imgArr[112][112]
-                //print("midpt \(midpt)")
+                print("midpt \(midpt)")
                 DispatchQueue.main.async {
                     // Sends the signal that the variable is changing in the main Dispatch Queue
                     self.objectWillChange.send()
@@ -307,13 +313,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     // Writes both the raw feature points of a session and the transform matrix
-    func writeFeaturePoints(features: String, session: Int, frame: ARFrame) -> Void {
+    func writeFeaturePoints(features: [[Float]], session: Int, frame: ARFrame) -> Void {
+        var featureString = ""
+        for feature in features {
+            featureString += "\(feature[0]), \(feature[1]), \(feature[2]), \(feature[3])\n"
+        }
         // Writes a csv file to documents directory in application data
         let transform = frame.camera.transform
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         // Writes the raw feature points into the documents directory
         let featureURL = documentsDirectory.appendingPathComponent("features_\(session).csv")
-        if let featuresData = features.data(using: .utf8) {
+        if let featuresData = featureString.data(using: .utf8) {
             try? featuresData.write(to: featureURL, options: [.atomic])
         }
         // Converts transform matrix into a string that can be written into a csv file
