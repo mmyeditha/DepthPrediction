@@ -34,13 +34,13 @@ extension ARPlaneAnchor {
         var shrinkDirections : [simd_float3] = []
 
         corners.append(simd_float3(xBounds.0, y, zBounds.0))
-        shrinkDirections.append(simd_float3(1,0,1).normalized)
+        shrinkDirections.append(simd_normalize(simd_float3(1,0,1)))
         corners.append(simd_float3(xBounds.0, y, zBounds.1))
-        shrinkDirections.append(simd_float3(1,0,-1).normalized)
+        shrinkDirections.append(simd_normalize(simd_float3(1,0,-1)))
         corners.append(simd_float3(xBounds.1, y, zBounds.0))
-        shrinkDirections.append(simd_float3(-1,0,1).normalized)
+        shrinkDirections.append(simd_normalize(simd_float3(-1,0,1)))
         corners.append(simd_float3(xBounds.1, y, zBounds.1))
-        shrinkDirections.append(simd_float3(-1,0,-1).normalized)
+        shrinkDirections.append(simd_normalize(simd_float3(-1,0,-1)))
         
         // viewMat goes from homogeneous plane coordinates to homogenous pixel locations
         let viewMat = cameraIntrinsics * simd_float4x3(simd_float3(1, 0, 0), simd_float3(0, -1, 0), simd_float3(0, 0, -1), simd_float3(0, 0, 0))*cameraTransform.inverse * planeTransform
