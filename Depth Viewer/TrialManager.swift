@@ -285,5 +285,3 @@ extension simd_float3 {
         return [self.x, self.y, self.z]
     }
 }
-
-
