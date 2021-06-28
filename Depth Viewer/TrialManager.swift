@@ -41,7 +41,7 @@ struct ARFrameDataLog {
         if JSONSerialization.isValidJSONObject(body) {
             return try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted)
         } else {
-            NavigationController.shared.logString("Error: JSON is invalid for serialization \(body)")
+            //NavigationController.shared.logString("Error: JSON is invalid for serialization \(body)")
             return nil
         }
     }
@@ -84,7 +84,7 @@ struct ARFrameDataLog {
 }
 
 
-class TrialManager: TrialRecorder {
+class TrialManager {
     public static var shared = TrialManager()
     let uploadManager = UploadManager.shared
     var voiceFeedback: URL?
@@ -101,9 +101,6 @@ class TrialManager: TrialRecorder {
     private init() {
     }
     
-    func register() {
-        NavigationController.shared.register(trialRecorder: self)
-    }
     
     func addAudioFeedback(audioFileURL: URL) {
         voiceFeedback = audioFileURL
@@ -182,7 +179,7 @@ class TrialManager: TrialRecorder {
         let imagePath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/frame.jpg"
         UploadManager.shared.putData(frame.jpegData, contentType: "image/jpeg", fullPath: imagePath)
         guard let frameMetaData = frame.metaDataAsJSON() else {
-            NavigationController.shared.logString("Error: failed to get frame metadata")
+            //NavigationController.shared.logString("Error: failed to get frame metadata")
             return
         }
         let metaDataPath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/framemetadata.json"
@@ -228,14 +225,14 @@ class TrialManager: TrialRecorder {
     }
     
     func logConfig() {
-        configLog = CodesignConfiguration.shared.configAsDict()
+        //configLog = CodesignConfiguration.shared.configAsDict()
     }
     
     func logAttribute(key: String, value: Any) {
         if JSONSerialization.isValidJSONObject([key: value]) {
             attributes[key] = value
         } else {
-            NavigationController.shared.logString("Unable to log \(key) as its value cannot be serialized to JSON")
+            //NavigationController.shared.logString("Unable to log \(key) as its value cannot be serialized to JSON")
         }
     }
     
@@ -254,34 +251,5 @@ class TrialManager: TrialRecorder {
             lastBodyDetectionTime = Date()
         }
     }
-    
 }
 
-extension simd_float3x3 {
-//    var asArray: [Float] {
-//        return [columns.0.x, columns.1.x, columns.2.x,
-//                columns.0.y, columns.1.y, columns.2.y,
-//                columns.0.z, columns.1.z, columns.2.z]
-//    }
-    
-    var asColumnMajorArray: [Float] {
-        return [columns.0.x, columns.0.y, columns.0.z,
-                columns.1.x, columns.1.y, columns.1.z,
-                columns.2.x, columns.2.y, columns.2.z]
-    }
-}
-
-extension simd_float4x4 {
-    var asColumnMajorArray: [Float] {
-        return [columns.0.x, columns.0.y, columns.0.z, columns.0.w,
-                columns.1.x, columns.1.y, columns.1.z, columns.1.w,
-                columns.2.x, columns.2.y, columns.2.z, columns.2.w,
-                columns.3.x, columns.3.y, columns.3.z, columns.3.w]
-    }
-}
-
-extension simd_float3 {
-    var asArray: [Float] {
-        return [self.x, self.y, self.z]
-    }
-}

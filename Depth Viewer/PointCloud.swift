@@ -14,28 +14,25 @@ class PointCloud: NSObject, NSSecureCoding {
     let width: Int
     let height: Int
     let depthData: [Float32]
-    let confData: [ARConfidenceLevel]
     var debugImages: [UIImage] = []
     
-    init(width: Int, height: Int, depthData: [Float32], confData: [ARConfidenceLevel]) {
+    init(width: Int, height: Int, depthData: [Float32]) {
         self.width = width
         self.height = height
         self.depthData = depthData
-        self.confData = confData
     }
     
     func encode(with coder: NSCoder) {
         coder.encode(NSNumber(value: width), forKey: "width")
         coder.encode(NSNumber(value: height), forKey: "height")
         coder.encode(depthData, forKey: "depthData")
-        coder.encode(confData.map({$0.rawValue}), forKey: "confDataRawValues")
     }
     
     required convenience init?(coder: NSCoder) {
-        guard let depthData = coder.decodeObject(forKey: "depthData") as? [Float32], let confDataRawValues = coder.decodeObject(forKey: "confDataRawValues") as? [Int], let width = coder.decodeObject(forKey: "width") as? NSNumber, let height = coder.decodeObject(forKey: "height") as? NSNumber else {
+        guard let depthData = coder.decodeObject(forKey: "depthData") as? [Float32], let width = coder.decodeObject(forKey: "width") as? NSNumber, let height = coder.decodeObject(forKey: "height") as? NSNumber else {
             return nil
         }
-        self.init(width: Int(truncating: width), height: Int(truncating: height), depthData: depthData, confData: confDataRawValues.map({ARConfidenceLevel(rawValue: $0) ?? .low}))
+        self.init(width: Int(truncating: width), height: Int(truncating: height), depthData: depthData)
     }
     
     func normalizedCoordinateToDepth(coord: (Float, Float))->Float {

@@ -8,6 +8,7 @@
 import Foundation
 import ARKit
 
+// - MARK: ARPlaneAnchor
 extension ARPlaneAnchor {
     
     func intersectWith(camera: ARCamera, padding: Float = 0.0)->[CGPoint] {
@@ -102,7 +103,9 @@ extension ARPlaneAnchor {
         guard D != 0 else {
             return nil
         }
-        return simd_float2(((x1*y2 - y1*x2)*(x3-x4) - (x1-x2)*(x3*y4-y3*x4))/D, ((x1*y2-y1*x2)*(y3-y4) - (y1-y2)*(x3*y4 - y3*x4))/D)
+        let leftSide: Float = ((x1*y2 - y1*x2)*(x3-x4) - (x1-x2)*(x3*y4-y3*x4))/D
+        let rightSide: Float = ((x1*y2-y1*x2)*(y3-y4) - (y1-y2)*(x3*y4 - y3*x4))/D
+        return simd_float2(leftSide, rightSide)
     }
     
     var worldCenter: simd_float3 {
@@ -110,6 +113,7 @@ extension ARPlaneAnchor {
     }
 }
 
+// - MARK: ARCamera
 extension ARCamera.TrackingState {
     // cleans up some of the logic in other places
     var isRelocalizing: Bool {
@@ -133,6 +137,7 @@ extension ARCamera.TrackingState {
     }
 }
 
+// - MARK: ARFrame
 extension ARFrame {
     func contains(_ p: CGPoint)->Bool {
         return ARFrame.contains(imageBounds: capturedImage.size, p)
@@ -152,7 +157,7 @@ extension ARFrame {
     }
 
     func isPointedOptimally()->Bool {
-        let cameraOptimalAxisAngleToWorldVertical = acos(simd_dot(camera.transform.zAxis, simd_float3(0, 1, 0))) * .degreesPerRadian
+        let cameraOptimalAxisAngleToWorldVertical = acos(simd_dot(camera.transform.zAxis, simd_float3(0, 1, 0))) * 180.0/Float.pi
         return abs(cameraOptimalAxisAngleToWorldVertical - 90) < 40
     }
     
@@ -315,6 +320,7 @@ extension ARFrame {
     }
 }
 
+// - MARK: getRayHelper func
 func getRayHelper(forPixel: CGPoint, withIntrinsics intrinsics: simd_float3x3, withCameraTransform transform: simd_float4x4)->(simd_float3, simd_float3) {
     let rayDirection = intrinsics.inverse * simd_float3(Float(forPixel.x), Float(forPixel.y), 1.0)
     

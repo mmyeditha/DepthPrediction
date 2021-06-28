@@ -241,7 +241,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             CVPixelBufferUnlockBaseAddress(confMapBuffer, CVPixelBufferLockFlags(rawValue: 0))
             
         }
-        return PointCloud(width: width, height: height, depthData: depthCopy, confData: confCopy)
+        return PointCloud(width: width, height: height, depthData: depthCopy)
     }
     
     func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
