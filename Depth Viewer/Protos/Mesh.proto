@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+message Float4Proto {
+ float x = 1;
+ float y = 2;
+ float z = 3;
+ float w = 4;
+}
+
+message TransformProto {
+  Float4Proto c1 = 1;
+  Float4Proto c2 = 2;
+  Float4Proto c3 = 3;
+  Float4Proto c4 = 4;
+}
+
+message VertexProto {
+ float x = 1;
+ float y = 2;
+ float z = 3;
+ float u = 4;
+ float v = 5;
+ float w = 6;
+}
+
+message MeshProto {
+  repeated VertexProto vertices = 1;
+  TransformProto transform = 2;
+}
+
+message MeshesProto {
+  repeated MeshProto meshes = 1;
+}
