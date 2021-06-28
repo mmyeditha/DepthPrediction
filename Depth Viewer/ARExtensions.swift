@@ -316,7 +316,7 @@ extension ARFrame {
             return nil
         }
         let meshes: [[String: [[Float]]]]? = logMeshes ? getMeshArrays() : nil
-        return ARFrameDataLog(type: type, timestamp: self.timestamp, jpegData: jpegData, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
+        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
     }
 }
 

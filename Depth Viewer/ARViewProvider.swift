@@ -51,6 +51,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         let configuration = ARWorldTrackingConfiguration()
         // Initializes y-axis parallel to gravity
         configuration.worldAlignment = .gravity
+        configuration.planeDetection = .horizontal
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.frameSemantics = [.smoothedSceneDepth, .sceneDepth]
         }
@@ -73,7 +74,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     // - MARK: Running app session
-    func session(_ session: ARSession, didUpdate frame: ARFrame) {
+    func session(_ session: ARSession, didUpdate frame: ARFrame, anchor: ARAnchor) {
         // Show the current position of phone relative to where it was when app started
         //let transform = frame.camera.transform
         //print("Transform: \(transform[3])")
@@ -95,7 +96,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         for p in xyz {
                             transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
                         }
-                        self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv", frame: frame)
+                        // self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv", frame: frame)
                     }
                 }
                 
@@ -103,6 +104,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 if let arr = self.imgArr {
                     // Code is executed no matter if phone is a LiDAR or not when button is pressed
                     if self.buttonPressed{
+                        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+                        let trialInstance = ARFrameDataLog(timestamp: NSTimeIntervalSince1970, jpegData: framee as! Data, intrinsics: frame.camera.intrinsics, planes: [planeAnchor], pose: frame.camera.transform, trueNorth: nil, meshes: nil)
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv", frame: frame)
                         print("Wrote the vector data")
@@ -288,11 +291,11 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             pointCloudData += "\(p.x),\(p.y),\(p.z),\(p.w)\n"
         }
         // Save data to a file in AppData
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let url = documentsDirectory.appendingPathComponent(fileName)
-        if let cloudData = pointCloudData.data(using: .utf8) {
-            try? cloudData.write(to: url, options: [.atomic])
-        }
+//        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+//        let url = documentsDirectory.appendingPathComponent(fileName)
+//        if let cloudData = pointCloudData.data(using: .utf8) {
+//            try? cloudData.write(to: url, options: [.atomic])
+//        }
     }
     
     func writeImg(image: UIImage, session: Int, label: String) {

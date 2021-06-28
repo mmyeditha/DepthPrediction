@@ -21,12 +21,10 @@ struct ARFrameDataLog {
     let planes: [ARPlaneAnchor]
     let pose: simd_float4x4
     let intrinsics: simd_float3x3
-    let type: String
     let trueNorth: simd_float4x4?
     let meshes: [[String: [[Float]]]]?
     
-    init(type: String, timestamp: Double, jpegData: Data, intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
-        self.type = type
+    init(timestamp: Double, jpegData: Data, intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
         self.timestamp = timestamp
         self.jpegData = jpegData
         self.planes = planes
@@ -37,7 +35,7 @@ struct ARFrameDataLog {
     }
     
     func metaDataAsJSON()->Data? {
-        let body : [String: Any] = ["timestamp": timestamp, "type": type, "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]})]
+        let body : [String: Any] = ["timestamp": timestamp, "type": "Hi", "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]})]
         if JSONSerialization.isValidJSONObject(body) {
             return try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted)
         } else {
