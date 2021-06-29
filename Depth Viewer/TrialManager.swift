@@ -231,7 +231,7 @@ class TrialManager {
             return
         }
         baseTrialPath = "\(user.uid)/\(trialID)"
-        print("Starting trial")
+        print("Starting trial", baseTrialPath)
     }
     
     func logConfig() {
