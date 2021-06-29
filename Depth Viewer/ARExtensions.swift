@@ -315,8 +315,12 @@ extension ARFrame {
         guard let uiImage = self.capturedImage.toUIImage(), let jpegData = uiImage.jpegData(compressionQuality: 0.5) else {
             return nil
         }
+        var depthJpeg: Data?
+        if let depthImage = self.sceneDepth?.depthMap.toUIImage() {
+            depthJpeg = depthImage.jpegData(compressionQuality: 1.0)
+        }
         let meshes: [[String: [[Float]]]]? = logMeshes ? getMeshArrays() : nil
-        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
+        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, depthJpeg: depthJpeg, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
     }
 }
 

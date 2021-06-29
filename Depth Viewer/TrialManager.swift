@@ -18,15 +18,17 @@ import ARKit
 struct ARFrameDataLog {
     let timestamp: Double
     let jpegData: Data
+    let depthJpeg: Data?
     let planes: [ARPlaneAnchor]
     let pose: simd_float4x4
     let intrinsics: simd_float3x3
     let trueNorth: simd_float4x4?
     let meshes: [[String: [[Float]]]]?
     
-    init(timestamp: Double, jpegData: Data, intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
+    init(timestamp: Double, jpegData: Data, depthJpeg: Data?, intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
         self.timestamp = timestamp
         self.jpegData = jpegData
+        self.depthJpeg = depthJpeg
         self.planes = planes
         self.intrinsics = intrinsics
         self.pose = pose
@@ -37,6 +39,7 @@ struct ARFrameDataLog {
     func metaDataAsJSON()->Data? {
         let body : [String: Any] = ["timestamp": timestamp, "type": "Hi", "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]})]
         if JSONSerialization.isValidJSONObject(body) {
+            print("Metadata written into JSON")
             return try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted)
         } else {
             //NavigationController.shared.logString("Error: JSON is invalid for serialization \(body)")
@@ -105,6 +108,7 @@ class TrialManager {
     }
     
     func addFrame(frame: ARFrameDataLog) {
+        print("Add frame called")
         // if we saw a body recently, we can't log the data
         if -lastBodyDetectionTime.timeIntervalSinceNow > 1.0 {
             frameSequenceNumber += 1
@@ -155,6 +159,7 @@ class TrialManager {
         }
         let posesPath = "\(baseTrialPath)/poses.json"
         UploadManager.shared.putData(poseJSON, contentType: "application/json", fullPath: posesPath)
+        print("Uploading poses")
     }
     
     static private func uploadConfig(configLogToUse: [String: Bool]?, attributesToUse: [String: Any], baseTrialPath: String) {
@@ -171,6 +176,7 @@ class TrialManager {
         }
         let attributesPath = "\(baseTrialPath)/attributes.json"
         UploadManager.shared.putData(attributeJSON, contentType: "application/json", fullPath: attributesPath)
+        print("Uploading configuration log")
     }
     
     static private func uploadAFrame(baseTrialPath: String, frameSequenceNumber: Int, frame: ARFrameDataLog) {
@@ -180,6 +186,10 @@ class TrialManager {
             //NavigationController.shared.logString("Error: failed to get frame metadata")
             return
         }
+        if let depthJpeg = frame.depthJpeg {
+            let depthImagePath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/depthmap.jpg"
+            UploadManager.shared.putData(depthJpeg, contentType: "image/jpeg", fullPath: depthImagePath)
+        }
         let metaDataPath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/framemetadata.json"
         UploadManager.shared.putData(frameMetaData, contentType: "application/json", fullPath: metaDataPath)
         if let meshData = frame.meshesToProtoBuf() {
@@ -187,6 +197,7 @@ class TrialManager {
             // TODO: gzipping gives a 30-40% reduction.  let compressedData: Data = try! meshData.gzipped()
             UploadManager.shared.putData(meshData, contentType: "application/x-protobuf", fullPath: meshDataPath)
         }
+        print("Uploading a frame?")
     }
     
     func finalizeTrial() {
@@ -220,6 +231,7 @@ class TrialManager {
             return
         }
         baseTrialPath = "\(user.uid)/\(trialID)"
+        print("Starting trial")
     }
     
     func logConfig() {

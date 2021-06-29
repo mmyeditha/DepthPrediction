@@ -55,5 +55,7 @@ class UploadManager {
     ///   - fullPath: the path to the data on the storage bucket
     func putData(_ uploadData: Data, contentType: String, fullPath: String) {
         doUploadJob(data: uploadData, contentType: contentType, fullPath: fullPath, retriesLeft: UploadManager.maximumRetryCount)
+        // Debug statement
+        print("Data uploaded")
     }
 }

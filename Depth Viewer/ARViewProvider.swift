@@ -28,6 +28,9 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }()
     
+    // Captures and uploads every frameCaptureRate'th frame for uploading to Firebase
+    let frameCaptureRate: Int = 10
+    
     // - MARK: Vision properties
     var request: VNCoreMLRequest?
     var visionModel: VNCoreMLModel?
@@ -38,6 +41,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var buttonPressed: Bool = false
     var sliderValue: Double = 0.5
     var featureMat: [[Float]] = []
+    var frameCount: Int = 0
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -51,13 +55,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         let configuration = ARWorldTrackingConfiguration()
         // Initializes y-axis parallel to gravity
         configuration.worldAlignment = .gravity
-        configuration.planeDetection = .horizontal
+        configuration.planeDetection = [.horizontal, .vertical]
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.frameSemantics = [.smoothedSceneDepth, .sceneDepth]
         }
         self.arView.session.run(configuration)
         self.arView.session.delegate = self
         self.runModel()
+        // Start the trial
+        TrialManager.shared.startTrial()
     }
     
     func runModel(){
@@ -74,7 +80,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     // - MARK: Running app session
-    func session(_ session: ARSession, didUpdate frame: ARFrame, anchor: ARAnchor) {
+    func session(_ session: ARSession, didUpdate frame: ARFrame) {
         // Show the current position of phone relative to where it was when app started
         //let transform = frame.camera.transform
         //print("Transform: \(transform[3])")
@@ -85,6 +91,18 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture the scene image
                 let framee = frame.capturedImage
                 self.predict(with: framee)
+                self.frameCount += 1
+                
+                // Capture every tenth frame and prep it for uploading to firebase
+                if self.frameCount % self.frameCaptureRate == 0 {
+                    // Instantiate ARFrameDataLog type from current frame
+                    let dataLog = frame.toLogFrame(type: "data", trueNorthTransform: nil)
+                    // Upload this frame
+                    if let dataLog = dataLog {
+                        TrialManager.shared.addFrame(frame: dataLog)
+                        print("Trial")
+                    }
+                }
                 
                 // Block of code below only gets passed if the phone has LIDAR
                 if let depthMap = frame.sceneDepth?.depthMap, let confMap = frame.sceneDepth?.confidenceMap {
@@ -103,13 +121,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Add to count
                 if let arr = self.imgArr {
                     // Code is executed no matter if phone is a LiDAR or not when button is pressed
-                    if self.buttonPressed{
-                        // Instantiate ARFrameDataLog type from current frame
-                        let dataLog = frame.toLogFrame(type: "mario", trueNorthTransform: nil)
-                        // Upload this frame
-                        if let dataLog = dataLog {
-                            TrialManager.shared.addFrame(frame: dataLog)
-                        }
+                    if self.buttonPressed {
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv", frame: frame)
                         print("Wrote the vector data")
@@ -171,17 +183,9 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             let output = Array(doubleBuffer)
             self.imgArr = convert1DTo2D(linspace: output)
             // Prints midpoint, useful for haptics and grayscale calibration
-            /// - TODO:
-            /// - The grayscale from the depth map needs to be analyzed further; sometimes it tends to be
-            /// - linear when walking more slowly and sometimes the points appear to have a sinusoidal trend.
-            /// https://docs.google.com/spreadsheets/d/1jf8F6472G-slNE1-v3t4Ykklwg3-hIV7WwIFJ0UlQcM/edit?usp=sharing
-            /// - Link above goes to the graphs in question, where x is the session number and y is the pixel value.
-            /// - Figure 1 and Figure 2 are the same paths but at different speeds; however, my laptop was plugged in and
-            /// - the wall segment was pretty small.
-            /// - Find a clear wall in a room with a lot of space and analyze the graphs.
             if let imgArr = self.imgArr {
                 let midpt = imgArr[112][112]
-                print("midpt \(midpt)")
+                //print("midpt \(midpt)")
                 DispatchQueue.main.async {
                     // Sends the signal that the variable is changing in the main Dispatch Queue
                     self.objectWillChange.send()
@@ -198,8 +202,10 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         self.buttonPressed = true
     }
     
-    func updateSliderValue(sliderValue: Double) {
-        self.sliderValue = sliderValue
+    // When Upload button is pressed, finalize trial and start a new one
+    func uploadPress() {
+        TrialManager.shared.finalizeTrial()
+        TrialManager.shared.startTrial()
     }
     
     // - MARK: Conversions
