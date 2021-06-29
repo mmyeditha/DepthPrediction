@@ -104,8 +104,12 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 if let arr = self.imgArr {
                     // Code is executed no matter if phone is a LiDAR or not when button is pressed
                     if self.buttonPressed{
-                        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
-                        let trialInstance = ARFrameDataLog(timestamp: NSTimeIntervalSince1970, jpegData: framee as! Data, intrinsics: frame.camera.intrinsics, planes: [planeAnchor], pose: frame.camera.transform, trueNorth: nil, meshes: nil)
+                        // Instantiate ARFrameDataLog type from current frame
+                        let dataLog = frame.toLogFrame(type: "mario", trueNorthTransform: nil)
+                        // Upload this frame
+                        if let dataLog = dataLog {
+                            TrialManager.shared.addFrame(frame: dataLog)
+                        }
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
                         self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv", frame: frame)
                         print("Wrote the vector data")
