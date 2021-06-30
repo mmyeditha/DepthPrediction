@@ -58,6 +58,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         configuration.planeDetection = [.horizontal, .vertical]
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.frameSemantics = [.smoothedSceneDepth, .sceneDepth]
+            configuration.sceneReconstruction = .meshWithClassification
+            print("LiDAR phone woohoo")
         }
         self.arView.session.run(configuration)
         self.arView.session.delegate = self
@@ -96,7 +98,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture every tenth frame and prep it for uploading to firebase
                 if self.frameCount % self.frameCaptureRate == 0 {
                     // Instantiate ARFrameDataLog type from current frame
-                    let dataLog = frame.toLogFrame(type: "data", trueNorthTransform: nil)
+                    let dataLog = frame.toLogFrame(type: "data", trueNorthTransform: nil, logMeshes: true)
                     // Upload this frame
                     if let dataLog = dataLog {
                         TrialManager.shared.addFrame(frame: dataLog)

@@ -315,12 +315,21 @@ extension ARFrame {
         guard let uiImage = self.capturedImage.toUIImage(), let jpegData = uiImage.jpegData(compressionQuality: 0.5) else {
             return nil
         }
-        var depthJpeg: Data?
-        if let depthImage = self.sceneDepth?.depthMap.toUIImage() {
-            depthJpeg = depthImage.jpegData(compressionQuality: 1.0)
+        guard let img = ARViewProvider.shared.img, let heatMapImg = img.jpegData(compressionQuality: 0.5) else {
+            return nil
         }
+        // Pointclouds for LiDAR phones
+        var transformedCloud: [simd_float4] = []
+        if let depthMap = self.sceneDepth?.depthMap, let confMap = self.sceneDepth?.confidenceMap {
+            let pointCloud = ARViewProvider.shared.saveSceneDepth(depthMapBuffer: depthMap, confMapBuffer: confMap)
+            let xyz = pointCloud.getFastCloud(intrinsics: self.camera.intrinsics, strideStep: 1, maxDepth: 1000, throwAwayPadding: 0, rgbWidth: CVPixelBufferGetWidth(self.capturedImage), rgbHeight: CVPixelBufferGetHeight(self.capturedImage))
+            for p in xyz {
+                transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
+            }
+        }
+        
         let meshes: [[String: [[Float]]]]? = logMeshes ? getMeshArrays() : nil
-        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, depthJpeg: depthJpeg, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
+        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, heatMapData: heatMapImg, depthData: transformedCloud, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
     }
 }
 

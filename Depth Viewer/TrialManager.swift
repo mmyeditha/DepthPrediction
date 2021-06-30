@@ -18,17 +18,19 @@ import ARKit
 struct ARFrameDataLog {
     let timestamp: Double
     let jpegData: Data
-    let depthJpeg: Data?
+    let heatMapData: Data
+    let depthData: [simd_float4]
     let planes: [ARPlaneAnchor]
     let pose: simd_float4x4
     let intrinsics: simd_float3x3
     let trueNorth: simd_float4x4?
     let meshes: [[String: [[Float]]]]?
     
-    init(timestamp: Double, jpegData: Data, depthJpeg: Data?, intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
+    init(timestamp: Double, jpegData: Data, heatMapData: Data, depthData: [simd_float4], intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
         self.timestamp = timestamp
         self.jpegData = jpegData
-        self.depthJpeg = depthJpeg
+        self.heatMapData = heatMapData
+        self.depthData = depthData
         self.planes = planes
         self.intrinsics = intrinsics
         self.pose = pose
@@ -37,7 +39,13 @@ struct ARFrameDataLog {
     }
     
     func metaDataAsJSON()->Data? {
-        let body : [String: Any] = ["timestamp": timestamp, "type": "Hi", "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]})]
+        // Convert depthData into an array of floats that can be written into JSON
+        var depthTable: [[Float]] = []
+        for depthDatum in depthData {
+            depthTable.append(depthDatum.asArray)
+        }
+        // Write body of JSON
+        let body : [String: Any] = ["timestamp": timestamp, "depthData": depthTable, "type": "Hi", "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]})]
         if JSONSerialization.isValidJSONObject(body) {
             print("Metadata written into JSON")
             return try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted)
@@ -186,10 +194,14 @@ class TrialManager {
             //NavigationController.shared.logString("Error: failed to get frame metadata")
             return
         }
-        if let depthJpeg = frame.depthJpeg {
-            let depthImagePath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/depthmap.jpg"
-            UploadManager.shared.putData(depthJpeg, contentType: "image/jpeg", fullPath: depthImagePath)
-        }
+        // Logging heat map
+        let heatImagePath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/heatmap.jpg"
+        UploadManager.shared.putData(frame.heatMapData, contentType: "image/jpeg", fullPath: heatImagePath)
+//        // Only for LiDAR
+//        if let depthJpeg = frame.depthJpeg {
+//            let depthImagePath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/depthmap.jpg"
+//            UploadManager.shared.putData(depthJpeg, contentType: "image/jpeg", fullPath: depthImagePath)
+//        }
         let metaDataPath = "\(baseTrialPath)/\(String(format:"%04d", frameSequenceNumber))/framemetadata.json"
         UploadManager.shared.putData(frameMetaData, contentType: "application/json", fullPath: metaDataPath)
         if let meshData = frame.meshesToProtoBuf() {
