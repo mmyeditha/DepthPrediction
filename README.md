@@ -1,6 +1,7 @@
 # FastDepth Model Variant
 ### By: Neel Dhulipala, Mario Gergis, and Merwan Yeditha
 
+__This branch contains Firebase implementatino & Data logging__
 An implementation of the FCRN CoreML library created by [tucan9389](https://github.com/tucan9389/DepthPrediction-CoreML) and adapted by [JustinFincher.](https://github.com/JustinFincher/FastDepth-CoreML)
 
 This app displays the live camera output and a heatmap produced by a matrix of distances computed by the FCRN neural network. The network takes the camera output as an input and, using the CoreML library (see below), estimates the distance between every point in the image and the camera. Our additions to this app include:

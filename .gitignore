@@ -9,6 +9,9 @@ DerivedData/
 ## mlmodel files
 model/
 
+## plist
+Depth\ Viewer/GoogleService-Info.plist
+
 ## Various settings
 *.pbxuser
 !default.pbxuser

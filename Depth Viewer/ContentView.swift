@@ -31,21 +31,27 @@ struct ContentView : View {
                 Image(uiImage: img)
                     .rotationEffect(.degrees(90))
             }
-            Slider(value: Binding( get: {
-                self.sliderValue
-            }, set: { (newVal) in
-                self.sliderValue = newVal
-                self.updateSlider()
-            }))
-            .padding(.all)
-            Text("Depth sensitivity: \(sliderValue)")
+            Button(action: {
+                ARViewProvider.shared.uploadPress()
+            }, label: {
+                Text("Upload Data")
+            })
+            .padding()
+//            Slider(value: Binding( get: {
+//                self.sliderValue
+//            }, set: { (newVal) in
+//                self.sliderValue = newVal
+//                self.updateSlider()
+//            }))
+//            .padding(.all)
+//            Text("Depth sensitivity: \(sliderValue)")
         })
     }
     
-    // Updates slider value in ARViewProvider
-    func updateSlider() {
-        ARViewProvider.shared.updateSliderValue(sliderValue: sliderValue)
-    }
+//    // Updates slider value in ARViewProvider
+//    func updateSlider() {
+//        ARViewProvider.shared.updateSliderValue(sliderValue: sliderValue)
+//    }
     
 }
 
