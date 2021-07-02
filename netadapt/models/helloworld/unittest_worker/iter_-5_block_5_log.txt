@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "../worker.py", line 110, in <module>
+    worker(args)
+  File "../worker.py", line 43, in worker
+    raise ValueError("Block index >= number of simplifiable blocks")
+ValueError: Block index >= number of simplifiable blocks
