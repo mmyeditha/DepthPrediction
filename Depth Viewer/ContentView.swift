@@ -29,7 +29,6 @@ struct ContentView : View {
             
             if let img = viewProvider.img {
                 Image(uiImage: img)
-                    .rotationEffect(.degrees(90))
             }
             Button(action: {
                 ARViewProvider.shared.uploadPress()
