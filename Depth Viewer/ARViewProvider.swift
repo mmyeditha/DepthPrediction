@@ -15,9 +15,16 @@ import UIKit
 import Accelerate
 import CoreImage
 
+enum MeshLoggingBehavior {
+    case none
+    case all
+    case updated
+}
+
 class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     public static var shared = ARViewProvider()
     let arView = ARView(frame: .zero)
+    var meshNeedsUploading: [UUID: Bool] = [:]
     public var img: UIImage?
     
     let estimationModel: FastDepth = {
@@ -49,7 +56,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
     var lastImpactTime = Date()
     var desiredInterval: Double?
-    var hapticTimer: Timer?
+    //var hapticTimer: Timer?
 
     // - MARK: App configuration
     private override init() {
@@ -83,6 +90,21 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
+        var allUpdatedMeshes: [UUID] = []
+        for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
+            meshNeedsUploading[id] = true
+            allUpdatedMeshes.append(id)
+        }
+        print("number of meshes being updated \(allUpdatedMeshes.count) total meshes: \(session.currentFrame?.anchors.compactMap({$0 as? ARMeshAnchor}).count)")
+    }
+    
+    func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
+        for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
+            meshNeedsUploading[id] = true
+        }
+    }
+    
     // - MARK: Running app session
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         // Show the current position of phone relative to where it was when app started
@@ -112,7 +134,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 // Capture every tenth frame and prep it for uploading to firebase
                 if self.frameCount % self.frameCaptureRate == 0 {
                     // Instantiate ARFrameDataLog type from current frame
-                    let dataLog = frame.toLogFrame(type: "data", trueNorthTransform: nil, logMeshes: true)
+                    let dataLog = frame.toLogFrame(type: "data", trueNorthTransform: nil, meshLoggingBehavior: .updated)
                     // Upload this frame
                     if let dataLog = dataLog {
                         TrialManager.shared.addFrame(frame: dataLog)
@@ -206,8 +228,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     // Sends the signal that the variable is changing in the main Dispatch Queue
                     self.objectWillChange.send()
                     // Plays haptics
-                    self.desiredInterval = Double(midpt/5)
-                    self.haptic(time: NSTimeIntervalSince1970)
+//                    self.desiredInterval = Double(midpt/5)
+//                    self.haptic(time: NSTimeIntervalSince1970)
                 }
             }
         }
@@ -370,17 +392,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     // - MARK: Haptics and Audio
-    func haptic(time: Double) {
-        hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
-            if let desiredInterval = self.desiredInterval {
-                if -self.lastImpactTime.timeIntervalSinceNow > desiredInterval {
-                    self.feedbackGenerator.impactOccurred()
-                    self.playSystemSound(id: 1103)
-                    self.lastImpactTime = Date()
-                }
-            }
-        }
-    }
+//    func haptic(time: Double) {
+//        hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
+//            if let desiredInterval = self.desiredInterval {
+//                if -self.lastImpactTime.timeIntervalSinceNow > desiredInterval {
+//                    self.feedbackGenerator.impactOccurred()
+//                    self.playSystemSound(id: 1103)
+//                    self.lastImpactTime = Date()
+//                }
+//            }
+//        }
+//    }
     
     // Play audio cues
     func playSystemSound(id: Int) {

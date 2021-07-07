@@ -92,7 +92,7 @@ def loc2glob(meshes):
 
     return res
 
-def make_3d_file(meshes, prefix):
+def make_3d_file(meshes, prefix, file_tag):
     """
     Build CSV files of meshes that is compatible with Plotly 3dMesh. Creates one CSV file per possible
     mesh classifciation
@@ -131,17 +131,18 @@ def make_3d_file(meshes, prefix):
             csv += f'"{verts[0]}","{verts[1]}","{verts[2]}"\n'  #the header of the CSVs
 
     Path(f"3d_files/{prefix}").mkdir(exist_ok=True)
-    save_path = f"3d_files/{prefix}/-ply.csv"
+    save_path = f"3d_files/{prefix}/{file_tag}-ply.csv"
     print("saving csv at: ", save_path)
     with open(save_path, "w") as f:
         f.write(csv)
         print("saving csv at: ", save_path)
 
 
-def main(file_prefix, full_path, make_csv=True):
+def main(file_prefix, full_path, file_tag, make_csv=True):
     """
     Pulls latest mesh data from Firebase, parses and stores as a pickle file.
     :param file_prefix: (str) desired prefix for the saved file
+    :param file_tag: (str) name for a file if meshes belong under same folder
     :param should_pull: (bool) True if you want to pull new file from Firebase, otherwise
         opens an existing file with matching `file_prefix`
     :returns: (dict) parsed mesh data
@@ -159,4 +160,7 @@ def main(file_prefix, full_path, make_csv=True):
     meshes = loc2glob(meshes)
 
     if make_csv:
-        make_3d_file(meshes, file_prefix)
+        make_3d_file(meshes, file_prefix, file_tag)
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2], sys.argv[3])

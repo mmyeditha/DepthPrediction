@@ -289,29 +289,38 @@ extension ARFrame {
         return ARFrame.getPlaneCoordinates(transform: camera.transform, intrinsics: camera.intrinsics, pixelCoordinates: pixelCoordinates, plane: plane)
     }
     
-    func getMeshArrays()->[[String: [[Float]]]] {
+    func getMeshArrays(meshLoggingBehavior: MeshLoggingBehavior)->[[String: [[Float]]]]? {
         // TODO: could maybe speed this up using unsafe C operations and the like.  Probably this is not needed though
+        var meshUpdateCount = 0
+        if meshLoggingBehavior == .none {
+            return nil
+        }
         var meshArrays: [[String: [[Float]]]] = []
         for mesh in anchors.compactMap({$0 as? ARMeshAnchor }) {
-            var vertices: [[Float]] = []
-            var normals: [[Float]] = []
-            var vertexPointer = mesh.geometry.vertices.buffer.contents().advanced(by: mesh.geometry.vertices.offset)
-            var normalsPointer = mesh.geometry.normals.buffer.contents().advanced(by: mesh.geometry.normals.offset)
-            for _ in 0..<mesh.geometry.vertices.count {
-                let normal = normalsPointer.assumingMemoryBound(to: (Float, Float, Float).self).pointee
-                let vertex = vertexPointer.assumingMemoryBound(to: (Float, Float, Float).self).pointee
-                normals.append([normal.0, normal.1, normal.2])
-                vertices.append([vertex.0, vertex.1, vertex.2])
-                normalsPointer = normalsPointer.advanced(by: mesh.geometry.normals.stride)
-                vertexPointer = vertexPointer.advanced(by: mesh.geometry.vertices.stride)
+            if meshLoggingBehavior == .all || ARViewProvider.shared.meshNeedsUploading[mesh.identifier] == true {
+                meshUpdateCount += 1
+                ARViewProvider.shared.meshNeedsUploading[mesh.identifier] = false
+                var vertices: [[Float]] = []
+                var normals: [[Float]] = []
+                var vertexPointer = mesh.geometry.vertices.buffer.contents().advanced(by: mesh.geometry.vertices.offset)
+                var normalsPointer = mesh.geometry.normals.buffer.contents().advanced(by: mesh.geometry.normals.offset)
+                for _ in 0..<mesh.geometry.vertices.count {
+                    let normal = normalsPointer.assumingMemoryBound(to: (Float, Float, Float).self).pointee
+                    let vertex = vertexPointer.assumingMemoryBound(to: (Float, Float, Float).self).pointee
+                    normals.append([normal.0, normal.1, normal.2])
+                    vertices.append([vertex.0, vertex.1, vertex.2])
+                    normalsPointer = normalsPointer.advanced(by: mesh.geometry.normals.stride)
+                    vertexPointer = vertexPointer.advanced(by: mesh.geometry.vertices.stride)
+                }
+                
+                meshArrays.append(["transform": [mesh.transform.columns.0.asArray, mesh.transform.columns.1.asArray, mesh.transform.columns.2.asArray, mesh.transform.columns.3.asArray], "vertices": vertices, "normals": normals])
             }
-            
-            meshArrays.append(["transform": [mesh.transform.columns.0.asArray, mesh.transform.columns.1.asArray, mesh.transform.columns.2.asArray, mesh.transform.columns.3.asArray], "vertices": vertices, "normals": normals])
         }
+        print("updated \(meshUpdateCount)")
         return meshArrays
     }
     
-    func toLogFrame(type: String, trueNorthTransform: simd_float4x4?, logMeshes: Bool = false)->ARFrameDataLog? {
+    func toLogFrame(type: String, trueNorthTransform: simd_float4x4?, meshLoggingBehavior: MeshLoggingBehavior)->ARFrameDataLog? {
         guard let uiImage = self.capturedImage.toUIImage(), let jpegData = uiImage.jpegData(compressionQuality: 0.5) else {
             return nil
         }
@@ -323,12 +332,17 @@ extension ARFrame {
         if let depthMap = self.sceneDepth?.depthMap, let confMap = self.sceneDepth?.confidenceMap {
             let pointCloud = ARViewProvider.shared.saveSceneDepth(depthMapBuffer: depthMap, confMapBuffer: confMap)
             let xyz = pointCloud.getFastCloud(intrinsics: self.camera.intrinsics, strideStep: 1, maxDepth: 1000, throwAwayPadding: 0, rgbWidth: CVPixelBufferGetWidth(self.capturedImage), rgbHeight: CVPixelBufferGetHeight(self.capturedImage))
+            // Come back to this
             for p in xyz {
                 transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
             }
         }
         
-        let meshes: [[String: [[Float]]]]? = logMeshes ? getMeshArrays() : nil
+        let meshes: [[String: [[Float]]]]? = getMeshArrays(meshLoggingBehavior: meshLoggingBehavior)
+        // Mesh length should not increase and remain around stable or fluttering within a certain range
+        if let meshes = meshes {
+            print("Mesh count: \(String(describing: meshes.count))")
+        }
         return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, heatMapData: heatMapImg, depthData: transformedCloud, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
     }
 }

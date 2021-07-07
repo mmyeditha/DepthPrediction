@@ -235,7 +235,8 @@ class TrialManager {
     
     func startTrial() {
         resetInternalState()
-        trialID = UUID().uuidString
+        // Easier to navigate older vs newer data uploads
+        trialID = "\(NSTimeIntervalSince1970)"
         logConfig()
 
         guard let user = Auth.auth().currentUser, let trialID = self.trialID else {

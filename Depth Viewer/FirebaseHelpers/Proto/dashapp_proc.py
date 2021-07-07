@@ -35,7 +35,7 @@ app.layout = html.Div([
 def display_mesh(name): #name = the selected value from the dropdown
     fig = go.Figure()
     #add one trace per mesh classification for the given route
-    file_path = f"3d_files/{name}/-ply.csv"
+    file_path = f"3d_files/{name}/one-ply.csv"
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         fig.add_trace(go.Scatter3d(

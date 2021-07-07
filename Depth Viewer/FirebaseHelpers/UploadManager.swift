@@ -20,14 +20,12 @@ fileprivate func doUploadJob(data: Data, contentType: String, fullPath: String, 
 
         let fileType = StorageMetadata()
         fileType.contentType = contentType
-        #if TESTING
-            let storageRef = Storage.storage(url: "gs://superlidarresearch-sandbox").reference().child(fullPath)
-        #else
-            let storageRef = Storage.storage().reference().child(fullPath)
-        #endif
+        let storageRef = Storage.storage().reference().child(fullPath)
             
         storageRef.putData(data, metadata: fileType) { (metadata, error) in
             if error != nil && retriesLeft > 0 && !UploadManager.overrideAllRetries {
+                // Note: this block is usually never executed
+                print("Error: \(error)")
                 doUploadJob(data: data, contentType: contentType, fullPath: fullPath, retriesLeft: retriesLeft-1, delayInSeconds: 20)
             }
         }
@@ -56,6 +54,6 @@ class UploadManager {
     func putData(_ uploadData: Data, contentType: String, fullPath: String) {
         doUploadJob(data: uploadData, contentType: contentType, fullPath: fullPath, retriesLeft: UploadManager.maximumRetryCount)
         // Debug statement
-        print("Data uploaded")
+        print("Data uploaded \(fullPath)")
     }
 }
