@@ -1,0 +1,6 @@
+numpy==1.19.5
+tqdm==4.61.2
+open3d==0.11.2
+opencv_python==4.5.2.54
+matplotlib==3.3.4
+Pillow==8.3.1
