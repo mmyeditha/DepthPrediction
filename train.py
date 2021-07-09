@@ -11,60 +11,42 @@ sys.path.insert(1,'tensorflow/')
 from predict import predict
 import open3d as o3d
 
-def segment_pt_cloud(filename, show=False):
-    # Read the point cloud in open3D
-    planedata = []
-    points = []
-    planes = []
-    pcd = o3d.io.read_point_cloud("data/object3d.ply")    
-    plane, pts = pcd.segment_plane(distance_threshold=0.1,
-                                         ransac_n=3,
-                                         num_iterations=1000)
-    print(pts)
-    planedata.append(plane.tolist())
-    points.append(pts)
-    planes.extend(pts.get_min_bound().tolist())
-    planes.extend(pts.get_max_bounds().tolist())
+def segment_and_remove(pcd):
+    plane, pts = pcd.segment_plane(distance_threshold=0.2, ransac_n=5000, num_iterations=1000)
     inlier_cloud = pcd.select_by_index(pts)
     outlier_cloud = pcd.select_by_index(pts, invert=True)
-    plane, pts = outlier_cloud.segment_plane(distance_threshold=0.05,
-                                         ransac_n=3,
-                                         num_iterations=1000)
-    planedata.append(plane.tolist())
-    points.append(pts)
-    inlier_2 = outlier_cloud.select_by_index(pts)
-    outlier_cloud = outlier_cloud.select_by_index(pts, invert=True)
-    plane, pts = outlier_cloud.segment_plane(distance_threshold=0.05,
-                                         ransac_n=3,
-                                         num_iterations=1000)
-    planedata.append(plane.tolist())
-    points.append(pts)
-    planes.extend(pts.get_min_bound().tolist())
-    planes.extend(pts.get_max_bounds().tolist())
-    inlier_3 = outlier_cloud.select_by_index(pts)
-    outlier_cloud = outlier_cloud.select_by_index(pts, invert=True)
-    plane, pts = outlier_cloud.segment_plane(distance_threshold=0.05,
-                                         ransac_n=3,
-                                         num_iterations=1000)
-    planedata.append(plane.tolist())
-    points.append(pts)
-    planes.extend(pts.get_min_bound().tolist())
-    planes.extend(pts.get_max_bounds().tolist())
-    inlier_4 = outlier_cloud.select_by_index(pts)
-    outlier_cloud = outlier_cloud.select_by_index(pts, invert=True)
-    plane, pts = outlier_cloud.segment_plane(distance_threshold=0.05,
-                                         ransac_n=3,
-                                         num_iterations=1000)
-    planedata.append(plane.tolist())
-    points.append(pts)
-    planes.extend(pts.get_min_bound().tolist())
-    planes.extend(pts.get_max_bounds().tolist())
+    o3d.visualization.draw_geometries([outlier_cloud])
+    return outlier_cloud
 
+def segment_pt_cloud(filename, show=False):
+    # Read the point cloud in open3D
+    centers = []
+    extents = []
+    norms = []
+    outlier_cloud = o3d.io.read_point_cloud(filename)
+    coords = np.asarray(outlier_cloud.points)
+    while len(coords) >= 5000:
+        print("Enough Points for RANSAC Pass")
+        plane, pts = outlier_cloud.segment_plane(distance_threshold=0.2,
+                                            ransac_n=5000,
+                                            num_iterations=1000)
+        
+        inlier_cloud = outlier_cloud.select_by_index(pts)
+        norms.append(plane[0:3])
+        outlier_cloud = outlier_cloud.select_by_index(pts, invert=True)
+        coords = np.asarray(outlier_cloud.points)
+        min_bound = inlier_cloud.get_min_bound()
+        max_bound = inlier_cloud.get_max_bound()
+        extents.append([max_bound[0]-min_bound[0], max_bound[1]-min_bound[1], max_bound[2]-min_bound[2]])
+        centers.append([(max_bound[0]+min_bound[0])/2, (max_bound[1]+min_bound[1])/2, (max_bound[2]+min_bound[2])/2])
+        print("RANSAC Pass Complete")
+    
+    print("All planes detected")
     if show:
-        o3d.visualization.draw_geometries([inlier_cloud, inlier_2, inlier_3, inlier_4])
+        o3d.visualization.draw_geometries([outlier_cloud])
     
 
-    return planedata, points, planes
+    return centers, extents, norms
 
 def gen_coords(filename, imgfile):
     
