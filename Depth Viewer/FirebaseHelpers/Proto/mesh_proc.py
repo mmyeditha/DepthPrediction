@@ -13,7 +13,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # UUIDs might be different, please check these
 IPHONE_UUIDS = {
     "neel": "Pvak87CpnfXCxHwyyXP8t9P7auY2",
-    # the capital I's could be lowercase l's
     "occam": "uX5LByxKAyUEDlrzQbNKdgc1Kp52",
     "mario": "PlaCjB8mGqY2VlQFsJFoAFUTpzm2"
 }
