@@ -78,14 +78,16 @@ struct ARFrameDataLog {
             meshProto.id = mesh.0
 
             for (vert, normal) in zip(mesh.1["vertices"]!, mesh.1["normals"]!) {
-                var vertexProto = VertexProto()
-                vertexProto.x = vert[0]
-                vertexProto.y = vert[1]
-                vertexProto.z = vert[2]
-                vertexProto.u = normal[0]
-                vertexProto.v = normal[1]
-                vertexProto.w = normal[2]
-                meshProto.vertices.append(vertexProto)
+                if vert != [] {
+                    var vertexProto = VertexProto()
+                    vertexProto.x = vert[0]
+                    vertexProto.y = vert[1]
+                    vertexProto.z = vert[2]
+                    vertexProto.u = normal[0]
+                    vertexProto.v = normal[1]
+                    vertexProto.w = normal[2]
+                    meshProto.vertices.append(vertexProto)
+                }
             }
             meshesProto.meshes.append(meshProto)
         }
