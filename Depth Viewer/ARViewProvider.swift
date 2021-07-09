@@ -7,7 +7,7 @@
 
 import SwiftUI
 import ARKit
-import RealityKit
+import SceneKit
 import VideoToolbox
 import Vision
 import Foundation
@@ -23,7 +23,7 @@ enum MeshLoggingBehavior {
 
 class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     public static var shared = ARViewProvider()
-    let arView = ARView(frame: .zero)
+    let arView = ARSCNView(frame: .zero)
     public var img: UIImage?
     
     let estimationModel: FastDepth = {
@@ -486,5 +486,4 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
 }
-
 
