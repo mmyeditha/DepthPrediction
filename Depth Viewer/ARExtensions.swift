@@ -298,7 +298,7 @@ extension ARFrame {
         var meshArrays: [(String,[String: [[Float]]])] = []
         for (key, value) in ARViewProvider.shared.meshRemovalFlag {
             if value {
-                meshArrays.append((key.uuidString, ["transform": [matrix_identity_float4x4.columns.0.asArray, matrix_identity_float4x4.columns.1.asArray, matrix_identity_float4x4.columns.2.asArray, matrix_identity_float4x4.columns.3.asArray], "vertices": [[]], "normals": [[]]]))
+                meshArrays.append((key.uuidString, ["transform": [matrix_identity_float4x4.columns.0.asArray, matrix_identity_float4x4.columns.1.asArray, matrix_identity_float4x4.columns.2.asArray, matrix_identity_float4x4.columns.3.asArray], "vertices": [], "normals": []]))
                 ARViewProvider.shared.meshRemovalFlag[key] = false
             }
         }
