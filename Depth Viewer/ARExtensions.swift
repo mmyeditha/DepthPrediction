@@ -289,13 +289,19 @@ extension ARFrame {
         return ARFrame.getPlaneCoordinates(transform: camera.transform, intrinsics: camera.intrinsics, pixelCoordinates: pixelCoordinates, plane: plane)
     }
     
-    func getMeshArrays(meshLoggingBehavior: MeshLoggingBehavior)->[[String: [[Float]]]]? {
+    func getMeshArrays(meshLoggingBehavior: MeshLoggingBehavior)->[(String, [String: [[Float]]])]? {
         // TODO: could maybe speed this up using unsafe C operations and the like.  Probably this is not needed though
         var meshUpdateCount = 0
         if meshLoggingBehavior == .none {
             return nil
         }
-        var meshArrays: [[String: [[Float]]]] = []
+        var meshArrays: [(String,[String: [[Float]]])] = []
+        for (key, value) in ARViewProvider.shared.meshRemovalFlag {
+            if value {
+                meshArrays.append((key.uuidString, ["transform": [matrix_identity_float4x4.columns.0.asArray, matrix_identity_float4x4.columns.1.asArray, matrix_identity_float4x4.columns.2.asArray, matrix_identity_float4x4.columns.3.asArray], "vertices": [[]], "normals": [[]]]))
+                ARViewProvider.shared.meshRemovalFlag[key] = false
+            }
+        }
         for mesh in anchors.compactMap({$0 as? ARMeshAnchor }) {
             if meshLoggingBehavior == .all || ARViewProvider.shared.meshNeedsUploading[mesh.identifier] == true {
                 meshUpdateCount += 1
@@ -313,7 +319,7 @@ extension ARFrame {
                     vertexPointer = vertexPointer.advanced(by: mesh.geometry.vertices.stride)
                 }
                 
-                meshArrays.append(["transform": [mesh.transform.columns.0.asArray, mesh.transform.columns.1.asArray, mesh.transform.columns.2.asArray, mesh.transform.columns.3.asArray], "vertices": vertices, "normals": normals])
+                meshArrays.append((mesh.identifier.uuidString, ["transform": [mesh.transform.columns.0.asArray, mesh.transform.columns.1.asArray, mesh.transform.columns.2.asArray, mesh.transform.columns.3.asArray], "vertices": vertices, "normals": normals]))
             }
         }
         print("updated \(meshUpdateCount)")
@@ -338,7 +344,7 @@ extension ARFrame {
             }
         }
         
-        let meshes: [[String: [[Float]]]]? = getMeshArrays(meshLoggingBehavior: meshLoggingBehavior)
+        let meshes = getMeshArrays(meshLoggingBehavior: meshLoggingBehavior)
         // Mesh length should not increase and remain around stable or fluttering within a certain range
         if let meshes = meshes {
             print("Mesh count: \(String(describing: meshes.count))")

@@ -24,9 +24,9 @@ struct ARFrameDataLog {
     let pose: simd_float4x4
     let intrinsics: simd_float3x3
     let trueNorth: simd_float4x4?
-    let meshes: [[String: [[Float]]]]?
+    let meshes: [(String, [String: [[Float]]])]?
     
-    init(timestamp: Double, jpegData: Data, heatMapData: Data, depthData: [simd_float4], intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [[String: [[Float]]]]?) {
+    init(timestamp: Double, jpegData: Data, heatMapData: Data, depthData: [simd_float4], intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [(String, [String: [[Float]]])]?) {
         self.timestamp = timestamp
         self.jpegData = jpegData
         self.heatMapData = heatMapData
@@ -63,7 +63,7 @@ struct ARFrameDataLog {
         for mesh in meshes {
             var meshProto = MeshProto()
             var columnProtos: [Float4Proto] = []
-            for column in mesh["transform"]! {
+            for column in mesh.1["transform"]! {
                 var columnProto = Float4Proto()
                 columnProto.x = column[0]
                 columnProto.y = column[1]
@@ -75,8 +75,9 @@ struct ARFrameDataLog {
             meshProto.transform.c2 = columnProtos[1]
             meshProto.transform.c3 = columnProtos[2]
             meshProto.transform.c4 = columnProtos[3]
+            meshProto.id = mesh.0
 
-            for (vert, normal) in zip(mesh["vertices"]!, mesh["normals"]!) {
+            for (vert, normal) in zip(mesh.1["vertices"]!, mesh.1["normals"]!) {
                 var vertexProto = VertexProto()
                 vertexProto.x = vert[0]
                 vertexProto.y = vert[1]
@@ -236,7 +237,7 @@ class TrialManager {
     func startTrial() {
         resetInternalState()
         // Easier to navigate older vs newer data uploads
-        trialID = "\(NSTimeIntervalSince1970)"
+        trialID = "\(UUID())"
         logConfig()
 
         guard let user = Auth.auth().currentUser, let trialID = self.trialID else {

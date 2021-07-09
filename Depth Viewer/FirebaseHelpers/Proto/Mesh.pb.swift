@@ -127,6 +127,8 @@ struct MeshProto {
   /// Clears the value of `transform`. Subsequent reads from it will return its default value.
   mutating func clearTransform() {self._transform = nil}
 
+  var id: String = String()
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -140,6 +142,36 @@ struct MeshesProto {
   // methods supported on all messages.
 
   var meshes: [MeshProto] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct DirectionAndDepth {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var u: Float = 0
+
+  var v: Float = 0
+
+  var w: Float = 0
+
+  var d: Float = 0
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+struct Points {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var points: [DirectionAndDepth] = []
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -306,6 +338,7 @@ extension MeshProto: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementation
   static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "vertices"),
     2: .same(proto: "transform"),
+    3: .same(proto: "id"),
   ]
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -313,6 +346,7 @@ extension MeshProto: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementation
       switch fieldNumber {
       case 1: try decoder.decodeRepeatedMessageField(value: &self.vertices)
       case 2: try decoder.decodeSingularMessageField(value: &self._transform)
+      case 3: try decoder.decodeSingularStringField(value: &self.id)
       default: break
       }
     }
@@ -325,12 +359,16 @@ extension MeshProto: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementation
     if let v = self._transform {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     }
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   static func ==(lhs: MeshProto, rhs: MeshProto) -> Bool {
     if lhs.vertices != rhs.vertices {return false}
     if lhs._transform != rhs._transform {return false}
+    if lhs.id != rhs.id {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -360,6 +398,82 @@ extension MeshesProto: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementati
 
   static func ==(lhs: MeshesProto, rhs: MeshesProto) -> Bool {
     if lhs.meshes != rhs.meshes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension DirectionAndDepth: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = "DirectionAndDepth"
+  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "u"),
+    2: .same(proto: "v"),
+    3: .same(proto: "w"),
+    4: .same(proto: "d"),
+  ]
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try decoder.decodeSingularFloatField(value: &self.u)
+      case 2: try decoder.decodeSingularFloatField(value: &self.v)
+      case 3: try decoder.decodeSingularFloatField(value: &self.w)
+      case 4: try decoder.decodeSingularFloatField(value: &self.d)
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.u != 0 {
+      try visitor.visitSingularFloatField(value: self.u, fieldNumber: 1)
+    }
+    if self.v != 0 {
+      try visitor.visitSingularFloatField(value: self.v, fieldNumber: 2)
+    }
+    if self.w != 0 {
+      try visitor.visitSingularFloatField(value: self.w, fieldNumber: 3)
+    }
+    if self.d != 0 {
+      try visitor.visitSingularFloatField(value: self.d, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: DirectionAndDepth, rhs: DirectionAndDepth) -> Bool {
+    if lhs.u != rhs.u {return false}
+    if lhs.v != rhs.v {return false}
+    if lhs.w != rhs.w {return false}
+    if lhs.d != rhs.d {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Points: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = "Points"
+  static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "points"),
+  ]
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      switch fieldNumber {
+      case 1: try decoder.decodeRepeatedMessageField(value: &self.points)
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.points.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.points, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Points, rhs: Points) -> Bool {
+    if lhs.points != rhs.points {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

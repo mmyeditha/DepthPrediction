@@ -24,7 +24,6 @@ enum MeshLoggingBehavior {
 class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     public static var shared = ARViewProvider()
     let arView = ARView(frame: .zero)
-    var meshNeedsUploading: [UUID: Bool] = [:]
     public var img: UIImage?
     
     let estimationModel: FastDepth = {
@@ -57,6 +56,10 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var lastImpactTime = Date()
     var desiredInterval: Double?
     //var hapticTimer: Timer?
+    
+    // - MARK: Mesh variables
+    var meshNeedsUploading: [UUID: Bool] = [:]
+    var meshRemovalFlag: [UUID: Bool] = [:]
 
     // - MARK: App configuration
     private override init() {
@@ -102,6 +105,14 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
             meshNeedsUploading[id] = true
+            meshRemovalFlag[id] = false
+        }
+    }
+    
+    func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
+        for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
+            print("WARNING: MESH DELETED \(id)")
+            meshRemovalFlag[id] = true
         }
     }
     
