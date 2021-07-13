@@ -42,15 +42,15 @@ def get_meshes_from_firebase(iphone, trial_name):
     # reverse order
     num_meshes = len(os.listdir('meshes'))
     mesh_dict = []
-    try:
-        for i in range(num_meshes-1, 0, -1):
+    for i in range(num_meshes-1, 0, -1):
+        try:
             file_name = "{:04d}".format(i)
             mat = read_protobuf(f"meshes/{file_name}/meshes.pb")
             mesh_dict += parse_meshes(mat)
-    except FileNotFoundError:
-        print("FileNotFoundError: file does not exist.")
-    except:
-        print("Error: something went wrong.")
+        except FileNotFoundError:
+            print(f"No mesh file in frame {i}. Continuing...")
+        except:
+            print("Error: something went wrong.")
 
     print("Meshes received")
     return mesh_dict
@@ -125,6 +125,9 @@ def loc2glob(meshes):
     for mesh in meshes:
         transform = np.array(mesh["transform"])
         vertices = np.array(mesh["vertices"])
+        #check if vertices mesh is empty, skips if True
+        if vertices.size == 0:
+            continue
         #calculate vertices in the global coordinate system and store in dict
         global_array = vertices @ transform
         #convert from np.ndarray back to list

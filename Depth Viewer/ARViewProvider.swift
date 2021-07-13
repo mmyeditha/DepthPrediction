@@ -37,7 +37,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }()
     
     // Captures and uploads every frameCaptureRate'th frame for uploading to Firebase
-    let frameCaptureRate: Int = 10
+    let frameCaptureRate: Int = 500
     
     // - MARK: Vision properties
     var request: VNCoreMLRequest?
@@ -58,8 +58,14 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     //var hapticTimer: Timer?
     
     // - MARK: Mesh variables
+//    var meshNeedsUploading: [UUID] = []
+//    var meshRemovalFlagList: [UUID] = []
     var meshNeedsUploading: [UUID: Bool] = [:]
     var meshRemovalFlag: [UUID: Bool] = [:]
+    var meshesAreChanging: Bool = false
+//    let meshAddQueue = DispatchQueue(label: "mesh.add.queue")
+//    let meshUpdateQueue = DispatchQueue(label: "mesh.update.queue")
+//    let meshQueue = DispatchQueue(label: "mesh.queue", attributes: .concurrent)
 
     // - MARK: App configuration
     private override init() {
@@ -96,16 +102,20 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         var allUpdatedMeshes: [UUID] = []
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
-            meshNeedsUploading[id] = true
-            allUpdatedMeshes.append(id)
+            if !meshesAreChanging {
+                meshNeedsUploading[id] = true
+                allUpdatedMeshes.append(id)
+            }
         }
         print("number of meshes being updated \(allUpdatedMeshes.count) total meshes: \(session.currentFrame?.anchors.compactMap({$0 as? ARMeshAnchor}).count)")
     }
     
     func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
-            meshNeedsUploading[id] = true
-            meshRemovalFlag[id] = false
+            if !meshesAreChanging {
+                meshNeedsUploading[id] = true
+                meshRemovalFlag[id] = false
+            }
         }
     }
     
@@ -149,7 +159,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     // Upload this frame
                     if let dataLog = dataLog {
                         TrialManager.shared.addFrame(frame: dataLog)
-                        print("Trial")
+                        //print("Trial")
                     }
                 }
                 

@@ -292,6 +292,8 @@ extension ARFrame {
     func getMeshArrays(meshLoggingBehavior: MeshLoggingBehavior)->[(String, [String: [[Float]]])]? {
         // TODO: could maybe speed this up using unsafe C operations and the like.  Probably this is not needed though
         var meshUpdateCount = 0
+        // Boolean flag, when true, sessions do not collect data on added and updated meshes until flag is turned back off at end of function
+        ARViewProvider.shared.meshesAreChanging = true
         if meshLoggingBehavior == .none {
             return nil
         }
@@ -323,6 +325,7 @@ extension ARFrame {
             }
         }
         print("updated \(meshUpdateCount)")
+        ARViewProvider.shared.meshesAreChanging = false
         return meshArrays
     }
     
