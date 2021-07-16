@@ -9,6 +9,8 @@ DerivedData/
 ## mlmodel files
 model/
 tensorflow/models/
+votenet/sunrgbd/OFFICIAL_SUNRGBD/
+votenet/sunrgbd/sunrgbd_trainval/
 
 ## plist
 Depth\ Viewer/GoogleService-Info.plist
