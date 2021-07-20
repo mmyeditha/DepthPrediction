@@ -12,9 +12,40 @@ sys.path.insert(1,'tensorflow/')
 from predict import predict
 from multiprocessing import Pool
 from scipy.io import loadmat
-import open3d as o3d
+OPEN3D = True
+try:
+    import open3d as o3d
+except:
+    print("Open3D not installed properly, plane and point cloud functionality will not work!")
+    OPEN3D = False
 
 DATA_PATH = "votenet/sunrgbd/sunrgbd_trainval"
+
+def remap(rgb_img, truth_heatmap):
+    """
+    Takes the ground truth depthmaps and remaps them to match with the depth values of
+    FCRN's prediction
+    """
+    heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img))[0]
+    min_heatmap = np.min(heatmap)
+    range_heatmap = np.max(heatmap)-min_heatmap
+    gray_img = cv2.cvtColor(cv2.imread(truth_heatmap), cv2.COLOR_BGR2GRAY)
+    cv2.imshow('grayscale image', gray_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    norm_image = np.zeros(np.shape(gray_img))
+    min_gray = np.min(gray_img)
+    range_gray = np.max(gray_img)-min_gray
+    print(np.shape(gray_img))
+    
+    for i in range(np.shape(gray_img)[0]):
+        for j in range(np.shape(gray_img)[1]):
+            norm_image[i][j] = ((gray_img[i][j]-min_gray)/range_gray)*range_heatmap+min_heatmap
+
+    return norm_image
+
+def predict_clean(image_path):
+    return predict('models/NYU_FCRN.ckpt', Image.open(image_path))[0]
 
 def segment_and_remove(pcd):
     plane, pts = pcd.segment_plane(distance_threshold=0.2, ransac_n=5000, num_iterations=1000)
@@ -23,8 +54,11 @@ def segment_and_remove(pcd):
     o3d.visualization.draw_geometries([outlier_cloud])
     return outlier_cloud
 
-def segment_pt_cloud(cloud, show=False):
+def segment_pt_cloud(cloud, show=False, noisy=False):
     # Read the point cloud in open3D
+    if not OPEN3D:
+        print('Open3D must be installed to segment the point cloud. Aborting')
+        return None
     centers = []
     extents = []
     norms = []
@@ -47,6 +81,9 @@ def segment_pt_cloud(cloud, show=False):
         if show:
             o3d.visualization.draw_geometries([outlier_cloud])
             o3d.visualization.draw_geometries([cl])
+        if noisy:
+            o3d.io.write_point_cloud(f'outlier_{num_planes}.ply', outlier_cloud)
+            o3d.io.write_point_cloud(f'inlier_{num_planes}.ply', cl)
         coords = np.asarray(outlier_cloud.points)
         min_bound = cl.get_min_bound()
         max_bound = cl.get_max_bound()
@@ -112,21 +149,28 @@ def gen_point_cloud(depth, image, intrinsics):
     intrinsics = np.reshape(intrinsics, (3,3))
     ptCloud = []
     width, height = image.size
-    with tqdm(total = 128*170, desc = 'processing cloud') as pbar:
-        for i in range(0, 128): 
-            for j in range(0, 170):
+    with tqdm(total = np.shape(depth)[0]*np.shape(depth)[1], desc = 'processing cloud') as pbar:
+        perc = np.percentile(depth, 97)
+        for i in range(np.shape(depth)[0]): 
+            for j in range(np.shape(depth)[1]):
                 # Remap to 4:3 with blank bars
-                iRemapped = (i/128)*height
-                jRemapped = (j/170)*width
+                iRemapped = (i/np.shape(depth)[0])*height
+                jRemapped = (j/np.shape(depth)[1])*width
 
                 ptvec = np.matrix([iRemapped, jRemapped, 1]).T
                 norm_val = np.linalg.norm(np.linalg.inv(intrinsics) @ ptvec)
                 vec = (np.linalg.inv(intrinsics) @ ptvec)/norm_val
-
+                # get rid of weird overlybright pictures in sungrbd depth data
+                if depth[i][j] >= perc:
+                    vec *= 0
+                else: 
+                    vec *= depth[i][j]
+                """
                 if j > 4 and j < 165:
-                    vec *= depth[0][i][j-5][0]
+                    vec *= depth[i][j-5]
                 else:
                     vec *= 0
+                """
                 vec = vec.tolist()
                 ting = np.matrix([-vec[0][0], vec[1][0], -vec[2][0], 1]).T
                 # new = rotation * ting
@@ -155,6 +199,16 @@ def gen_point_cloud(depth, image, intrinsics):
     
 # gen_coords('framemetadata.json', 'frame.jpg')
 
+def write_ply_file(pc, name):
+    """
+    Take in a pointcloud as an array and write it
+    """
+    with open(f'{name}.ply', 'w') as f:
+        f.write(f'ply\nformat ascii 1.0\nelement vertex {len(pc)}\nproperty double x\nproperty double y\nproperty double z\nend_header\n')
+        for i, point in enumerate(pc):
+            f.write(f'{round(point[0][0]*point[0][3],15)} {round(point[0][1]*point[0][3],15)} {round(point[0][2]*point[0][3],15)}\n')
+
+
 def parse_planes(json):
     f = open('transform.csv', 'w', newline="")
     p = open('plane.csv', 'w', newline="")
@@ -172,7 +226,7 @@ js = json.load(open('data/framemetadata.json'))
 def generate_v1_data():
     # Extract intrinsic matrices from text file
     intrinsic_list = open(os.path.join(DATA_PATH, 'intrinsics.txt')).read().split('\n')
-    for image_id in range(1, 10335):
+    for image_id in tqdm(range(1, 10335)):
         # Extract single intrinsic as numpy matrix
         intrinsic = np.asarray([float(i) for i in intrinsic_list[image_id].split()[1:]])
         # Generate a point cloud for the image_id
@@ -244,3 +298,7 @@ with tqdm(total = len(files), desc="Writing cloud") as pbar:
         """
 
     
+#quick script
+j = remap('images/rgb.jpg', 'images/heatmap.png')
+pc = gen_point_cloud(j, Image.open('images/rgb.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
+write_ply_file(pc, 'pc_new')
