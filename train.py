@@ -208,6 +208,37 @@ def write_ply_file(pc, name):
         for i, point in enumerate(pc):
             f.write(f'{round(point[0][0]*point[0][3],15)} {round(point[0][1]*point[0][3],15)} {round(point[0][2]*point[0][3],15)}\n')
 
+def extract_walls(mat, depth_cloud):
+    segs = loadmat(mat)
+    seglabel = segs['seglabel']
+    names = segs['names'][0]
+    surfaces = {}
+    walls= [x for x in range(len(names)) if names[x][0] == 'wall']
+    ceilings = [x for x in range(len(names)) if names[x][0] == 'ceiling']
+    floor = [x for x in range(len(names)) if names[x][0] == 'floor']
+    # Eventually change these to be dependent on list length, not just only for SUNGRB data
+    for i in range(530):
+        for j in range(730):
+            if seglabel[i][j] in walls:
+                if f'wall_{seglabel[i][j]}' in surfaces.keys():
+                    surfaces[f'wall_{seglabel[i][j]}'].append(i*730+j)
+                else:
+                    surfaces[f'wall_{seglabel[i][j]}'] = [i*730+j]
+            elif seglabel[i][j] in ceilings:
+                if f'wall_{seglabel[i][j]}' in surfaces.keys():
+                    surfaces[f'ceiling_{seglabel[i][j]}'].append(i*730+j)
+                else:
+                    surfaces[f'ceiling_{seglabel[i][j]}'] = [i*730+j]
+
+            elif seglabel[i][j] in floor:
+                if f'wall_{seglabel[i][j]}' in surfaces.keys():
+                    surfaces[f'ceiling_{seglabel[i][j]}'].append(i*730+j)
+                else:
+                    surfaces[f'ceiling_{seglabel[i][j]}'] = [i*730+j]
+    return surfaces
+
+
+
 
 def parse_planes(json):
     f = open('transform.csv', 'w', newline="")
@@ -280,6 +311,9 @@ def process_depth():
     pool.close()
 
 
+def parse_annotation(json):
+    labels = json.load(open(json))
+    label_list = []
 
 
 
@@ -299,6 +333,6 @@ with tqdm(total = len(files), desc="Writing cloud") as pbar:
 
     
 #quick script
-j = remap('images/rgb.jpg', 'images/heatmap.png')
-pc = gen_point_cloud(j, Image.open('images/rgb.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
-write_ply_file(pc, 'pc_new')
+#j = remap('images/rgb.jpg', 'images/heatmap.png')
+#pc = gen_point_cloud(j, Image.open('images/rgb.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
+#write_ply_file(pc, 'pc_new')
