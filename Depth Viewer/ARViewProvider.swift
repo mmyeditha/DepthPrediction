@@ -8,6 +8,7 @@
 import SwiftUI
 import ARKit
 import RealityKit
+import SceneKit
 import VideoToolbox
 import Vision
 import Foundation
@@ -50,6 +51,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var sliderValue: Double = 0.5
     var featureMat: [[Float]] = []
     var frameCount: Int = 0
+    var raycasts: [simd_float3] = []
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -58,8 +60,15 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     //var hapticTimer: Timer?
     
     // - MARK: Mesh variables
+//    var meshNeedsUploading: [UUID] = []
+//    var meshRemovalFlagList: [UUID] = []
     var meshNeedsUploading: [UUID: Bool] = [:]
     var meshRemovalFlag: [UUID: Bool] = [:]
+    var meshesAreChanging: Bool = false
+    var raycastHolder: ARTrackedRaycast?
+//    let meshAddQueue = DispatchQueue(label: "mesh.add.queue")
+//    let meshUpdateQueue = DispatchQueue(label: "mesh.update.queue")
+//    let meshQueue = DispatchQueue(label: "mesh.queue", attributes: .concurrent)
 
     // - MARK: App configuration
     private override init() {
@@ -73,6 +82,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             configuration.sceneReconstruction = .meshWithClassification
             print("LiDAR phone woohoo")
         }
+        self.arView.debugOptions = [.showSceneUnderstanding]
         self.arView.session.run(configuration)
         self.arView.session.delegate = self
         self.runModel()
@@ -96,22 +106,26 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         var allUpdatedMeshes: [UUID] = []
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
-            meshNeedsUploading[id] = true
-            allUpdatedMeshes.append(id)
+            if !meshesAreChanging {
+                meshNeedsUploading[id] = true
+                allUpdatedMeshes.append(id)
+            }
         }
-        print("number of meshes being updated \(allUpdatedMeshes.count) total meshes: \(session.currentFrame?.anchors.compactMap({$0 as? ARMeshAnchor}).count)")
+        //print("number of meshes being updated \(allUpdatedMeshes.count) total meshes: \(session.currentFrame?.anchors.compactMap({$0 as? ARMeshAnchor}).count)")
     }
     
     func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
-            meshNeedsUploading[id] = true
-            meshRemovalFlag[id] = false
+            if !meshesAreChanging {
+                meshNeedsUploading[id] = true
+                meshRemovalFlag[id] = false
+            }
         }
     }
     
     func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
-            print("WARNING: MESH DELETED \(id)")
+            //print("WARNING: MESH DELETED \(id)")
             meshRemovalFlag[id] = true
         }
     }
@@ -137,6 +151,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 let height:Int = Int(image.extent.width)
                 CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attrs, &pixelBuffer)
                 context.render(rotatedImage, to: pixelBuffer!)
+                self.raycasts = self.raycastMiddlePixel(frame: frame)
                 if let frameee = pixelBuffer {
                     self.predict(with: frameee)
                 }
@@ -149,7 +164,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     // Upload this frame
                     if let dataLog = dataLog {
                         TrialManager.shared.addFrame(frame: dataLog)
-                        print("Trial")
+                        //print("Trial")
                     }
                 }
                 
@@ -341,6 +356,50 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return ptCloud
     }
     
+    /// Raycasts from camera to tag and places tag on the nearest mesh if the device supports LiDAR
+    func raycastMiddlePixel(frame: ARFrame) -> [simd_float3] {
+        let startFunctionTime = Date()
+        var totalTimeRaycasting = 0.0
+        let imageWidth = CVPixelBufferGetWidth(frame.capturedImage)
+        let imageHeight = CVPixelBufferGetHeight(frame.capturedImage)
+        let cameraTransform = frame.camera.transform
+        // get pose of the z-direction relative to the phone
+        let pixelSkipFactor = 20
+        // array of all raycasts in the frame
+        var raycasts: [simd_float3] = []
+        for i in stride(from: 0, to: imageWidth, by: pixelSkipFactor) {
+            for j in stride(from: 0, to: imageHeight, by: pixelSkipFactor) {
+                var point = simd_float3(0.0, 0.0, 0.0)
+                let cameraRay = frame.camera.intrinsics.inverse * simd_float3(x: Float(i), y: Float(j), z: 1)
+                let cameraRayInDeviceCoordinates = simd_float3(cameraRay.x, -cameraRay.y, -cameraRay.z)
+                let cameraRayInWorldCoordinates = cameraTransform*simd_float4(cameraRayInDeviceCoordinates, 0)
+                // get pose of the camera from the frame's transform
+                let cameraPos = simd_float3(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+                let raycastQuery = ARRaycastQuery(origin: cameraPos, direction: simd_float3(cameraRayInWorldCoordinates.x, cameraRayInWorldCoordinates.y, cameraRayInWorldCoordinates.z), allowing: .estimatedPlane, alignment: .any)
+                let startRayCast = Date()
+                let raycastResult = self.arView.session.raycast(raycastQuery)
+                totalTimeRaycasting -= startRayCast.timeIntervalSinceNow
+                
+                
+                if raycastResult.count > 0 {
+                    let cameraCoordsOfRaycastResult = frame.camera.transform.inverse*raycastResult[0].worldTransform.columns.3
+                    let heatMapValue = -cameraCoordsOfRaycastResult.z
+                    point = simd_float3(Float(i), Float(j), heatMapValue)
+                    //print(i, j, heatMapValue)
+        //            let meshTransform = raycastResult[0].worldTransform
+        //            let raycastTagTransform: simd_float4x4 = simd_float4x4(diagonal:simd_float4(1, -1, -1, 1)) * cameraTransform.inverse * meshTransform
+        //            return raycastTagTransform
+                } else {
+                    point = simd_float3(Float(i), Float(j), 0.0)
+                    //print(i, j, 0.0)
+                }
+                raycasts.append(point)
+            }
+        }
+        print("time to produce cloud", -startFunctionTime.timeIntervalSinceNow, "raycasting time", totalTimeRaycasting)
+        return raycasts
+    }
+    
     // - MARK: Writing data
     // Write point cloud into a file for further review
     func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String, frame: ARFrame) -> Void {
@@ -486,5 +545,4 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
 }
-
 
