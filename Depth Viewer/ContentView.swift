@@ -57,7 +57,7 @@ struct ContentView : View {
 
 struct ARViewContainer: UIViewRepresentable {
     
-    func makeUIView(context: Context) -> ARSCNView {
+    func makeUIView(context: Context) -> ARView {
         // Load the "Box" scene from the "Experience" Reality File
         
         // Add the box anchor to the scene
@@ -67,7 +67,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     
-    func updateUIView(_ uiView: ARSCNView, context: Context) {}
+    func updateUIView(_ uiView: ARView, context: Context) {}
     
 }
 
