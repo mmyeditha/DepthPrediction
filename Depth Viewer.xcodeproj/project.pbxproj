@@ -48,7 +48,6 @@
 		98CEC32F268A547F00CE8683 /* CGPointUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CEC32E268A547F00CE8683 /* CGPointUtilities.swift */; };
 		98CEC331268A54AB00CE8683 /* ImageManipulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CEC330268A54AB00CE8683 /* ImageManipulation.swift */; };
 		98CEC333268A54B100CE8683 /* InternetConnectionUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CEC332268A54B100CE8683 /* InternetConnectionUtil.swift */; };
-		98DB377126A8A13C00D9C3B1 /* FCRN.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = 98DB377026A8A13C00D9C3B1 /* FCRN.mlmodel */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -111,7 +110,6 @@
 		98CEC32E268A547F00CE8683 /* CGPointUtilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CGPointUtilities.swift; sourceTree = "<group>"; };
 		98CEC330268A54AB00CE8683 /* ImageManipulation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageManipulation.swift; sourceTree = "<group>"; };
 		98CEC332268A54B100CE8683 /* InternetConnectionUtil.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InternetConnectionUtil.swift; sourceTree = "<group>"; };
-		98DB377026A8A13C00D9C3B1 /* FCRN.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FCRN.mlmodel; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -216,7 +214,6 @@
 			isa = PBXGroup;
 			children = (
 				32419277267A5C03006508FD /* FastDepth.mlmodel */,
-				98DB377026A8A13C00D9C3B1 /* FCRN.mlmodel */,
 			);
 			path = mlmodel;
 			sourceTree = "<group>";
@@ -422,7 +419,6 @@
 				9847B499267A8A9100E81ECD /* PointCloud.swift in Sources */,
 				98CEC31C268A4ED600CE8683 /* ContentView.swift in Sources */,
 				98CEC32B268A536F00CE8683 /* simd_extensions.swift in Sources */,
-				98DB377126A8A13C00D9C3B1 /* FCRN.mlmodel in Sources */,
 				98CEC331268A54AB00CE8683 /* ImageManipulation.swift in Sources */,
 				98CEC333268A54B100CE8683 /* InternetConnectionUtil.swift in Sources */,
 				32654E342677F0FE00D189FA /* ARViewProvider.swift in Sources */,
