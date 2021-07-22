@@ -26,13 +26,10 @@ def remap(rgb_img, truth_heatmap):
     Takes the ground truth depthmaps and remaps them to match with the depth values of
     FCRN's prediction
     """
-    heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img))[0]
+    heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img), silent=True)[0]
     min_heatmap = np.min(heatmap)
     range_heatmap = np.max(heatmap)-min_heatmap
     gray_img = cv2.cvtColor(cv2.imread(truth_heatmap), cv2.COLOR_BGR2GRAY)
-    cv2.imshow('grayscale image', gray_img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
     norm_image = np.zeros(np.shape(gray_img))
     min_gray = np.min(gray_img)
     range_gray = np.max(gray_img)-min_gray
@@ -52,7 +49,8 @@ def segment_and_remove(pcd):
     inlier_cloud = pcd.select_by_index(pts)
     outlier_cloud = pcd.select_by_index(pts, invert=True)
     o3d.visualization.draw_geometries([outlier_cloud])
-    return outlier_cloud
+    o3d.visualization.draw_geometries([inlier_cloud])
+    return outlier_cloud, inlier_cloud
 
 def segment_pt_cloud(cloud, show=False, noisy=False):
     # Read the point cloud in open3D
@@ -144,7 +142,7 @@ def crop_to_FCRN(image):
     image = image.crop([0,0+offset, width, height-offset])
     return image
 
-def gen_point_cloud(depth, image, intrinsics):
+def gen_point_cloud(depth, image, intrinsics, extrinsics):
     # intrinsics = np.asmatrix(np.reshape(metadata['intrinsics'], (3,3)).swapaxes(0,1))
     """
     NEW process for point cloud generation
@@ -186,7 +184,13 @@ def gen_point_cloud(depth, image, intrinsics):
                 matlist = np.array(ting.flatten()).tolist()
                 ptCloud.append(matlist)
                 pbar.update(1)
-    return ptCloud
+
+    # rotate the point cloud to align with the proper coordinate system
+    extrinsics = np.reshape(extrinsics, (4,4))
+    rot_x = np.reshape(np.array([1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1]), (4,4))   
+    pcd = np.reshape(np.asarray(ptCloud), (len(ptCloud),4))
+    pcd = rot_x@(extrinsics@pcd)
+    return pcd
     # write to csv
     """
     with open(f'cloud.csv', 'w', newline="") as f:
@@ -216,13 +220,15 @@ def write_ply_file(pc, name):
         for i, point in enumerate(pc):
             f.write(f'{round(point[0][0]*point[0][3],15)} {round(point[0][1]*point[0][3],15)} {round(point[0][2]*point[0][3],15)}\n')
 
-def extract_walls(mat, depth_cloud):
+
+#----------------------------- new workflow --------------------------------------------
+def extract_walls(mat):
     """
     args:
-        mat: seg.mat file from dataset, classifies each pixel as a certain object and
-        defines each class as a number, also has a dictionary to tell us what number means
-        what object
-        depth_cloud: ply file ground truth point cloud corresponding to the segmentation matrix
+        mat: String referencing the path to the seg.mat file from dataset, 
+        classifies each pixel as a certain object and defines each class as a number,
+        also has a dictionary to tell us what number
+        means what object. 
 
     returns a dictionary mapping objects to the pointcloud indices of points that make up that object.
     Ex. a key will be 'wall_0', and the value will be a list of indices that make up the points that fall
@@ -231,11 +237,13 @@ def extract_walls(mat, depth_cloud):
     """
     segs = loadmat(mat)
     seglabel = segs['seglabel']
+    print(seglabel)
     names = segs['names'][0]
+    print(names)
     surfaces = {}
-    walls= [x for x in range(len(names)) if names[x][0] == 'wall']
-    ceilings = [x for x in range(len(names)) if names[x][0] == 'ceiling']
-    floor = [x for x in range(len(names)) if names[x][0] == 'floor']
+    walls= [x+1 for x in range(len(names)) if names[x][0] == 'wall']
+    ceilings = [x+1 for x in range(len(names)) if names[x][0] == 'ceiling']
+    floor = [x+1 for x in range(len(names)) if names[x][0] == 'floor']
     # Eventually change these to be dependent on list length, not just only for SUNGRB data
     for i in range(530):
         for j in range(730):
@@ -245,17 +253,21 @@ def extract_walls(mat, depth_cloud):
                 else:
                     surfaces[f'wall_{seglabel[i][j]}'] = [i*730+j]
             elif seglabel[i][j] in ceilings:
-                if f'wall_{seglabel[i][j]}' in surfaces.keys():
+                if f'ceiling_{seglabel[i][j]}' in surfaces.keys():
                     surfaces[f'ceiling_{seglabel[i][j]}'].append(i*730+j)
                 else:
                     surfaces[f'ceiling_{seglabel[i][j]}'] = [i*730+j]
 
             elif seglabel[i][j] in floor:
-                if f'wall_{seglabel[i][j]}' in surfaces.keys():
-                    surfaces[f'ceiling_{seglabel[i][j]}'].append(i*730+j)
+                if f'floor_{seglabel[i][j]}' in surfaces.keys():
+                    surfaces[f'floor_{seglabel[i][j]}'].append(i*730+j)
                 else:
-                    surfaces[f'ceiling_{seglabel[i][j]}'] = [i*730+j]
+                    surfaces[f'floor_{seglabel[i][j]}'] = [i*730+j]
     return surfaces
+
+def gen_bbox():
+    return None
+    
 
 def parse_planes(json):
     """
@@ -371,6 +383,6 @@ with tqdm(total = len(files), desc="Writing cloud") as pbar:
 
     
 #quick script
-j = remap('demo_files/second_test/0000041.jpg', 'demo_files/second_test/0000041.png')
-pc = gen_point_cloud(j, Image.open('demo_files/second_test/0000041.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
-write_ply_file(pc, 'demo_files/second_test/0000041.ply')
+#j = remap('demo_files/second_test/0000041.jpg', 'demo_files/second_test/0000041.png')
+#pc = gen_point_cloud(j, Image.open('demo_files/second_test/0000041.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
+#write_ply_file(pc, 'demo_files/second_test/0000041.ply')
