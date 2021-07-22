@@ -352,7 +352,9 @@ extension ARFrame {
         if let meshes = meshes {
             print("Mesh count: \(String(describing: meshes.count))")
         }
-        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, heatMapData: heatMapImg, depthData: transformedCloud, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
+        
+        let raycasts = ARViewProvider.shared.raycasts
+        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, heatMapData: heatMapImg, depthData: transformedCloud, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes, raycasts: raycasts)
     }
 }
 

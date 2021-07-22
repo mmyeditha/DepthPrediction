@@ -4,40 +4,85 @@ Altered by: Neel Dhulipala
 Original program: https://github.com/occamLab/augmented-reality-tools/blob/plane-visualization/plane-visualization/meshes/meshes.py
 Process AR mesh data from Depth Viewer
 """
+import json
 import numpy as np
 import os, sys
 from pathlib import Path
 import Mesh_pb2
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# UUIDs might be different, please check these
-IPHONE_UUIDS = {
-    "neel": "Pvak87CpnfXCxHwyyXP8t9P7auY2",
-    "occam": "uX5LByxKAyUEDlrzQbNKdgc1Kp52",
-    "mario": "PlaCjB8mGqY2VlQFsJFoAFUTpzm2"
-}
-
-# Read a protobuf file, given a String with the path info
 def read_protobuf(filepath):
+    """
+    Open and read protobuf files to be parsed.
+
+    Args:
+        filepath: A String with the path to the location of the protobuf file.
+    Returns:
+        A matrix including the data from the protobuf.
+    """
     f = open(filepath, 'rb')
     m = Mesh_pb2.MeshesProto()
     # Read the mesh and return the output matrix
     m2 = m.FromString(f.read())
     return m2
 
-def get_meshes_from_firebase(iphone, trial_name):
+# Read the raycasts from the metadata JSON file, given String of filepath
+def get_raycasts_from_metadata(filepath):
+    """
+    Extract raycast data from a metadata JSON file.
+
+    Args:
+        filepath: A String with the path to the location of the metadata file.
+    Returns:
+        A list containing the raycast data.
+    """
+    f = open(filepath)
+    # after opening filepath, get it parsed
+    metadata = json.load(f)
+    # return section of metadata file with the raycast data
+    return metadata['raycast']
+
+def get_raycasts_from_firebase(frame_number):
+    """
+    Find the names of all the paths which include the raycast data requested.
+
+    Args:
+        frame_number: An integer of the frame where you want the raycast data from
+    Returns:
+        None.
+    """
+    # NOTE: meshes data has to be downloaded first, which means
+    # get_meshes_from_firebase must be called before this function
+    raycast_array = []
+    try:
+        file_name = "{:04d}".format(frame_number)
+        raycast_array = get_raycasts_from_metadata(f"meshes/{file_name}/framemetadata.json")
+    except FileNotFoundError:
+        print(f"No metadata file in frame {num_meshes}. Try again.")
+        quit()
+    except:
+        print("Error: something went wrong with the raycasts.")
+        quit()
+
+    print("Raycasts received...")
+    return raycast_array
+
+def get_meshes_from_firebase(trial_path):
     """
     Find the names of all the paths which include the mesh files requested.
 
-    :param iphone: (str) name of the iPhone where data is stored
-    :param trial_name: (str) trial where you want meshes from
-    :returns:
+    Args:
+        trial_path: A string containing the trial where you want meshes from
+    Returns:
+        None.
     """
-    # Downloads all data from a trial
-    # Note that machine this is running on has gsutil installed, read wiki for
-    # more information
-    os.system('mkdir meshes')
-    os.system(f'gsutil -m rsync -r gs://clew-sandbox.appspot.com/{IPHONE_UUIDS[iphone]}/{trial_name}/ meshes')
+    if trial_path != "same":
+        # removes the meshes directory, if it already exists
+        os.system('rm -r meshes')
+        # replaces it with a new meshes directory, which will contain the data
+        # from this particular trial (iphone/trial_name)
+        os.system('mkdir meshes')
+        os.system(f'gsutil -m rsync -r gs://clew-sandbox.appspot.com/{trial_path}/ meshes')
     # Count how many files there are in the directory, read protobufs in
     # reverse order
     num_meshes = len(os.listdir('meshes'))
@@ -50,9 +95,10 @@ def get_meshes_from_firebase(iphone, trial_name):
         except FileNotFoundError:
             print(f"No mesh file in frame {i}. Continuing...")
         except:
-            print("Error: something went wrong.")
+            print("Error: something went wrong with the meshes.")
 
-    print("Meshes received")
+
+    print("Meshes received...")
     return mesh_dict
 
 def get_vertices(mat, index):
@@ -71,6 +117,7 @@ def get_vertices(mat, index):
 def get_transform(mat, index):
     """
     Extracts transform matrix from mesh data from a protobuf file.
+
     Args:
         mat: a dictionary of mesh data from a protobuf file
         index: an integer representing the index of the protobuf file
@@ -94,8 +141,11 @@ def get_transform(mat, index):
 def parse_meshes(mat):
     """
     Update dictionary so that values are Python objects instead of strings.
-    :param mat: (dict?) raw Protobuf data read directly from the .pb file
-    :returns: (list of dicts) containing parsed version of input data
+
+    Args:
+        mat: A matrix of the raw Protobuf data read directly from the .pb file
+    Returns:
+        A list of dicts containing parsed version of input data
     """
     data_dicts = []
     id_list = []
@@ -116,9 +166,13 @@ def parse_meshes(mat):
 
 def loc2glob(meshes):
     """
-    Given info about planes in local coordinate system, convert to global coordinate system
-    :param meshes: (list of dicts) contains parsed version of input data
-    :returns: list of global vertices
+    Given info about planes in local coordinate system, convert to global
+    coordinate system
+
+    Args:
+        meshes: A list of dicts containing parsed version of input data
+    Returns:
+        A list of global vertices
     """
     res = []
     # Go through all the meshes in list
@@ -133,61 +187,82 @@ def loc2glob(meshes):
         #convert from np.ndarray back to list
         res += global_array.tolist()
 
-    print("Meshes were localized")
+    print("Meshes were localized...")
     return res
 
 def write_to_ply(meshes, ply_file_name):
     """
     Takes data from list of transformed vertices and writes them into ply file
-    :param meshes: (list of dicts) containing parsed mesh data from Firebase
-    :param ply_file_name: (str) desired name for the ply file
+
+    Args:
+        meshes: A list of dicts containing parsed mesh data from Firebase
+        ply_file_name: A string with the desired name for the ply file
+    Returns:
+        None.
     """
     # Multiply unit vector vals by length
-    with open(f"{ply_file_name}.ply", "w") as f:
+    with open(f"mesh_plys/{ply_file_name}.ply", "w") as f:
         f.write(f"ply\nformat ascii 1.0\nelement vertex {len(meshes)}\nproperty double x\nproperty double y\nproperty double z\nend_header\n")
         for verts in meshes:
             f.write(f'{verts[0]} {verts[1]} {verts[2]}\n')
-    print("PLY file written")
+    print("PLY file written...")
 
-
-# def make_3d_file(meshes, prefix, file_tag):
-#     """
-#     Build CSV files of meshes that is compatible with Plotly 3dMesh. Creates one CSV file per possible
-#     mesh classifciation
-#     :param meshes: (list of dicts) containing parsed mesh data from Firebase
-#     :param prefix: (str) prefix used for saving the CSVs
-#     :returns: None, saves the CSVs locally
-#     """
-#
-#     #build csvs
-#     csv = '"x","y","z"\n'
-#     for verts in meshes:
-#         for vert in verts:
-#             #x,y,z = (x,y,z) coordinates of a single vertex in a mesh
-#             csv += f'"{verts[0]}","{verts[1]}","{verts[2]}"\n'  #the header of the CSVs
-#
-#     Path(f"3d_files/{prefix}").mkdir(exist_ok=True)
-#     save_path = f"3d_files/{prefix}/{file_tag}-ply.csv"
-#     print("saving csv at: ", save_path)
-#     with open(save_path, "w") as f:
-#         f.write(csv)
-#         print("saving csv at: ", save_path)
-
-
-def main(file_prefix, iphone, trial_name):
+def write_to_raycast_ply(raycasts):
     """
-    Pulls latest mesh data from Firebase, parses and stores as a pickle file.
-    :param file_prefix: (str) desired prefix for the saved file
-    :param iphone: (str) name of the iPhone where data is stored
-    :param trial_name: (str) name of the trial where you want to pull meshes from
-    :returns: (dict) parsed mesh data
+    Takes data from raycasts and writes it to a ply file
+
+    Args:
+        raycasts: An array of floats containing raycast data extracted from
+            metadata JSON
+    Returns:
+        None.
+    """
+    # Multiply unit vector vals by length
+    with open(f"mesh_plys/raycast_heatmap.ply", "w") as f:
+        f.write(f"ply\nformat ascii 1.0\nelement vertex {len(raycasts)}\nproperty double x\nproperty double y\nproperty double z\nend_header\n")
+        for ray in raycasts:
+            if len(ray) == 5:
+                f.write(f'{ray[0]} {ray[1]} {ray[4]}\n')
+            else:
+                f.write(f'{ray[0]} {ray[1]} {ray[2]}\n')
+    print("Raycasts heatmap PLY file written...")
+    # Point cloud file for raycasts
+    pcrays = []
+    for ray in raycasts:
+        if len(ray) == 5:
+            pcrays.append(ray)
+    with open(f"mesh_plys/raycast_pointcloud.ply", "w") as f:
+        f.write(f"ply\nformat ascii 1.0\nelement vertex {len(pcrays)}\nproperty double x\nproperty double y\nproperty double z\nend_header\n")
+        for ray in pcrays:
+            f.write(f'{ray[2]} {ray[3]} {ray[4]}\n')
+    print("Raycasts pointcloud PLY file written...")
+
+
+def main(file_prefix, trial_path, frame_number):
+    """
+    Pulls latest mesh data from Firebase, parses and stores into PLY file.
+    Also pulls raycast data and stores that as two PLY files, one with heatmap
+    data and one with pointcloud data.
+
+    Args:
+        file_prefix: A string with desired prefix for the saved file
+        trial_path: A string containing name of the trial where you want to
+            pull meshes from
+        frame_number: An integer of the number of the frame from where raycasts
+            should be
+        extracted
+    Returns:
+        A dict of parsed mesh data
     """
     # retrieve data from Firebase
-    meshes = get_meshes_from_firebase(iphone, trial_name)
+    # If you do not want to redownload the files in a trial, type "same"
+    meshes = get_meshes_from_firebase(trial_path)
+    raycasts = get_raycasts_from_firebase(int(frame_number))
     # localize meshes in global coordinate system
     loc_meshes = loc2glob(meshes)
     # create a ply file of the meshes
     write_to_ply(loc_meshes, file_prefix)
+    write_to_raycast_ply(raycasts)
     print("Execution successful!")
 
 if __name__ == "__main__":
