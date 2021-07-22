@@ -19,31 +19,7 @@ struct ContentView : View {
     @ObservedObject var viewProvider: ARViewProvider = ARViewProvider.shared
     var body: some View {
         VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0, content: {
-            Button(action: {
-                ARViewProvider.shared.buttonPress()
-            }, label: {
-                Text("Generate Cloud")
-                    // .offset(x: 0, y: -30.0)
-            })
             ARViewContainer()
-            
-            if let img = viewProvider.img {
-                Image(uiImage: img)
-            }
-            Button(action: {
-                ARViewProvider.shared.uploadPress()
-            }, label: {
-                Text("Upload Data")
-            })
-            .padding()
-//            Slider(value: Binding( get: {
-//                self.sliderValue
-//            }, set: { (newVal) in
-//                self.sliderValue = newVal
-//                self.updateSlider()
-//            }))
-//            .padding(.all)
-//            Text("Depth sensitivity: \(sliderValue)")
         })
     }
     
