@@ -5,13 +5,13 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 from matplotlib import pyplot as plt
 from PIL import Image
+import cv2
 
 import models
 
+def predict(model_data_path, img):
 
-def predict(model_data_path, img, silent=False):
-
-    
+    reuse = True
     # Default input size
     height = 228
     width = 304
@@ -19,11 +19,14 @@ def predict(model_data_path, img, silent=False):
     batch_size = 1
    
     # Read image
-    # img = Image.open(image_path)
+    #img = Image.open(image_path)
     img = img.resize([width,height], Image.ANTIALIAS)
     img = np.array(img).astype('float32')
     img = np.expand_dims(np.asarray(img), axis = 0)
    
+    # Reset graph
+    tf.reset_default_graph()
+
     # Create a placeholder for the input image
     input_node = tf.placeholder(tf.float32, shape=(None, height, width, channels))
 
@@ -46,13 +49,15 @@ def predict(model_data_path, img, silent=False):
         pred = sess.run(net.get_output(), feed_dict={input_node: img})
         
         # Plot result
-        if not silent:
-            fig = plt.figure()
-            ii = plt.imshow(pred[0,:,:,0], interpolation='nearest')
-            fig.colorbar(ii)
-            plt.show()
-        
+        #fig = plt.figure()
+        #ii = plt.imshow(pred[0,:,:,0], interpolation='nearest')
+        #fig.colorbar(ii)
+
         return pred
+        #cv_img = FigureCanvas(fig)
+        #cv2.imshow(cv_img)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
         
                 
 def main():

@@ -72,7 +72,11 @@ for j = 1:length(data.groundtruth3DBB)
     coeffs = abs(data.groundtruth3DBB(j).coeffs);
     box2d = data2d.groundtruth2DBB(j).gtBb2D;
     assert(strcmp(data2d.groundtruth2DBB(j).classname, classname));
-    fprintf(fid, '%s %d %d %d %d %f %f %f %f %f %f %f %f\n', classname, box2d(1), box2d(2), box2d(3), box2d(4), centroid(1), centroid(2), centroid(3), coeffs(1), coeffs(2), coeffs(3), orientation(1), orientation(2));
+    fprintf(fid, '%s %d %d %d %d %f %f   fprintf(fid, '%s %d %d %d %d %f %f %f %f %f %f %f %f\n', classname, box2d(1), box2d(2), box2d(3), box2d(4), centroid(1), centroid(2), centroid(3), coeffs(1), coeffs(2), coeffs(3), orientation(1), orientation(2));
+end
+fclose(fid);
+
+%f %f %f %f %f %f\n', classname, box2d(1), box2d(2), box2d(3), box2d(4), centroid(1), centroid(2), centroid(3), coeffs(1), coeffs(2), coeffs(3), orientation(1), orientation(2));
 end
 fclose(fid);
 

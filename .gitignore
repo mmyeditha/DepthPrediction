@@ -12,6 +12,9 @@ tensorflow/models/
 votenet/sunrgbd/OFFICIAL_SUNRGBD/
 votenet/sunrgbd/sunrgbd_trainval/
 
+## dataset
+votenet/sunrgbd/sunrgbd_plane/*
+
 ## plist
 Depth\ Viewer/GoogleService-Info.plist
 
