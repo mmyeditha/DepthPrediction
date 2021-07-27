@@ -47,7 +47,7 @@ def remap(rgb_img, truth_heatmap):
     Takes the ground truth depthmaps and remaps them to match with the depth values of
     FCRN's prediction
     """
-    heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img))[0]
+    heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img), silent=True)[0]
     min_heatmap = np.min(heatmap)
     range_heatmap = np.max(heatmap)-min_heatmap
     gray_img = cv2.cvtColor(cv2.imread(truth_heatmap), cv2.COLOR_BGR2GRAY)
@@ -159,6 +159,71 @@ def crop_to_FCRN(image):
     offset = (height-height/1.25)/2
     image = image.crop([0,0+offset, width, height-offset])
     return image
+
+def gen_point_cloud_old(depth, image, intrinsics, extrinsics):
+    # intrinsics = np.asmatrix(np.reshape(metadata['intrinsics'], (3,3)).swapaxes(0,1))
+    """
+    Old method for point cloud generation. Unbearably slow
+    """
+    intrinsics = np.reshape(intrinsics, (3,3))
+    print(intrinsics)
+    ptCloud = []
+    width, height = image.size
+    with tqdm(total = np.shape(depth)[0]*np.shape(depth)[1], desc = 'processing cloud') as pbar:
+        perc = np.percentile(depth, 97)
+        for i in range(np.shape(depth)[0]): 
+            for j in range(np.shape(depth)[1]):
+                # Remap to 4:3 with blank bars
+                iRemapped = (i/np.shape(depth)[0])*height
+                jRemapped = (j/np.shape(depth)[1])*width
+
+                ptvec = np.matrix([jRemapped, iRemapped, 1]).T
+                norm_val = np.linalg.norm(np.linalg.inv(intrinsics) @ ptvec)
+                vec = (np.linalg.inv(intrinsics) @ ptvec)/norm_val
+                # get rid of weird overlybright pictures in sungrbd depth data
+                if depth[i][j] >= perc:
+                    vec *= 0
+                else: 
+                    vec *= depth[i][j]
+                """
+                if j > 4 and j < 165:
+                    vec *= depth[i][j-5]
+                else:
+                    vec *= 0
+                """
+                vec = vec.tolist()
+                ting = np.matrix([-vec[0][0], vec[1][0], -vec[2][0], 1]).T
+                # new = rotation * ting
+                # print(new)
+                matlist = np.array(ting.flatten()).tolist()
+                ptCloud.append(matlist)
+                pbar.update(1)
+
+    # rotate the point cloud to align with the proper coordinate system
+    extrinsics = np.reshape(extrinsics, (4,4))
+    rot_x = np.reshape(np.array([1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1]), (4,4))   
+    pcd = np.reshape(np.asarray(ptCloud), (len(ptCloud),4))
+    pcd = rot_x@(extrinsics@pcd)
+    return pcd
+    # write to csv
+    """
+    with open(f'cloud.csv', 'w', newline="") as f:
+            writer = csv.writer(f)
+            image = Image.open('frame.jpg')
+            resized = ImageOps.fit(image, (128,170), Image.ANTIALIAS).convert('RGB') 
+            cv_resized = np.array(resized).reshape((128*170, 3))
+            cv2.imshow('hi',cv_resized)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            for i in range(0, len(ptCloud)):
+                point = ptCloud[i]
+                color = cv_resized[i].tolist()
+                point.extend(color)
+                writer.writerow(point)
+                """
+        
+    
+# gen_coords('framemetadata.json', 'frame.jpg')
 
 def write_ply_file(pc, name):
     """
