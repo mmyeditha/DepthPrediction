@@ -8,6 +8,8 @@ sys.path.insert(1,'tensorflow/')
 from predict import predict
 from multiprocessing import Pool
 from scipy.io import loadmat
+from sklearn.decomposition import PCA
+
 OPEN3D = True
 try:
     import open3d as o3d
@@ -16,6 +18,7 @@ except:
     OPEN3D = False
 
 DATA_PATH = "votenet/sunrgbd/sunrgbd_trainval"
+
 
 def reorganize_data():
     """
@@ -42,6 +45,7 @@ def reorganize_data():
         shutil.copyfile(intrinsic, f'sunrgbd_plane/{i+1:05}/intrinsics_{i+1:05}.txt')
         shutil.copyfile(seg, f'sunrgbd_plane/{i+1:05}/seg_{i+1:05}.mat')
 
+
 def remap(rgb_img, truth_heatmap):
     """
     Takes the ground truth depthmaps and remaps them to match with the depth values of
@@ -62,6 +66,7 @@ def remap(rgb_img, truth_heatmap):
                 pbar.update(1)
     return norm_image
 
+
 def gen_ply_file(image_id):
     data_path = 'votenet/sunrgbd/sunrgbd_plane'
     rgb_img = os.path.join(data_path, f'{image_id+1:05}/rgb_{image_id+1:05}.jpg')
@@ -77,8 +82,10 @@ def gen_ply_file(image_id):
     pc = gen_point_cloud(r, rgb_img, np.asarray(intrinsic), np.asarray(extrinsic))
     write_ply_file(pc, os.path.join(data_path, f'{image_id+1:05}/pcd_{image_id+1+1:05}'))
 
+
 def predict_clean(image_path):
     return predict('models/NYU_FCRN.ckpt', Image.open(image_path))[0]
+
 
 def segment_and_remove(pcd):
     plane, pts = pcd.segment_plane(distance_threshold=0.2, ransac_n=5000, num_iterations=1000)
@@ -87,6 +94,7 @@ def segment_and_remove(pcd):
     o3d.visualization.draw_geometries([outlier_cloud])
     o3d.visualization.draw_geometries([inlier_cloud])
     return outlier_cloud, inlier_cloud
+
 
 def segment_pt_cloud(cloud, show=False, noisy=False):
     # Read the point cloud in open3D
@@ -103,16 +111,18 @@ def segment_pt_cloud(cloud, show=False, noisy=False):
         o3d.visualization.draw_geometries([outlier_cloud])
     coords = np.asarray(outlier_cloud.points)
     num_planes = 0
-    while (len(coords) >= 3000 and num_planes<4):
+    plane_list = []
+    while (len(coords) >= 1000 and num_planes<4):
         print("Enough Points for RANSAC Pass")
-        plane, pts = outlier_cloud.segment_plane(distance_threshold=0.05,
-                                            ransac_n=3000,
+        plane, pts = outlier_cloud.segment_plane(distance_threshold=0.1,
+                                            ransac_n=1000,
                                             num_iterations=1000)
         
         inlier_cloud = outlier_cloud.select_by_index(pts)
         norms.append(plane[0:3])
         outlier_cloud = outlier_cloud.select_by_index(pts, invert=True)
         cl, ind = inlier_cloud.remove_statistical_outlier(nb_neighbors=75, std_ratio=.375)
+        plane_list.append(cl)
         if show:
             o3d.visualization.draw_geometries([outlier_cloud])
             o3d.visualization.draw_geometries([cl])
@@ -132,8 +142,8 @@ def segment_pt_cloud(cloud, show=False, noisy=False):
     if show:
         o3d.visualization.draw_geometries([outlier_cloud])
     
+    return plane_list
 
-    return centers, extents, norms
 
 def write_label_file(centers, extents, norms, image_id):
     if not 'label_gen' in os.listdir(DATA_PATH):
@@ -142,6 +152,7 @@ def write_label_file(centers, extents, norms, image_id):
         for i, _ in enumerate(centers):
                 # pylint isn't mad, it's disappointed
                 f.write(f'plane, {centers[i][0]}, {centers[i][1]}, {centers[i][2]}, {extents[i][0]}, {extents[i][1]}, {extents[i][2]}, {norms[i][0]}, {norms[i][1]}, {norms[i][2]}\n')
+
 
 def crop_to_square(image):
     width, height = image.size
@@ -154,11 +165,13 @@ def crop_to_square(image):
         image = image.crop([0,offset,width,height-offset])
     return image
 
+
 def crop_to_FCRN(image):
     width, height = image.size
     offset = (height-height/1.25)/2
     image = image.crop([0,0+offset, width, height-offset])
     return image
+
 
 def gen_point_cloud_old(depth, image, intrinsics, extrinsics):
     # intrinsics = np.asmatrix(np.reshape(metadata['intrinsics'], (3,3)).swapaxes(0,1))
@@ -205,25 +218,7 @@ def gen_point_cloud_old(depth, image, intrinsics, extrinsics):
     pcd = np.reshape(np.asarray(ptCloud), (len(ptCloud),4))
     pcd = rot_x@(extrinsics@pcd)
     return pcd
-    # write to csv
-    """
-    with open(f'cloud.csv', 'w', newline="") as f:
-            writer = csv.writer(f)
-            image = Image.open('frame.jpg')
-            resized = ImageOps.fit(image, (128,170), Image.ANTIALIAS).convert('RGB') 
-            cv_resized = np.array(resized).reshape((128*170, 3))
-            cv2.imshow('hi',cv_resized)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            for i in range(0, len(ptCloud)):
-                point = ptCloud[i]
-                color = cv_resized[i].tolist()
-                point.extend(color)
-                writer.writerow(point)
-                """
-        
-    
-# gen_coords('framemetadata.json', 'frame.jpg')
+
 
 def write_ply_file(pc, name):
     """
@@ -268,6 +263,7 @@ def gen_point_cloud(depth, image, intrinsics, extrinsics):
     pcd = np.vstack((projected, np.ones((height_rgb*width_rgb))))
     return (rot_x@(extrinsics@pcd)).T
 
+
 def extract_walls(mat):
     """
     args:
@@ -296,6 +292,8 @@ def extract_walls(mat):
     for i in range(530):
         for j in range(730):
             if seglabel[i][j] in walls:
+                # Run RANSAC on the wall to make sure that it is breaking
+                # each wall down.
                 if f'wall_{seglabel[i][j]}' in surfaces.keys():
                     surfaces[f'wall_{seglabel[i][j]}'].append(i*730+j)
                 else:
@@ -318,7 +316,8 @@ def extract_walls(mat):
 
     return surfaces
 
-def get_heading_angle(bbox):
+
+def get_heading_angle(bbox, centroid, obj_centroid):
     """
     Given the bbox o3d object, returns the heading angle relative to
     the +x direction (right)
@@ -328,26 +327,69 @@ def get_heading_angle(bbox):
     
     returns a 2 element array.
     """
-    # First, run PCA on the pts of the 3DBB
+    # First, run PCA on the corner pts of the 3DBB
+    pts = np.asarray(bbox.get_box_points())
+    # vector between centroid and scene centroid
+    vec = centroid-obj_centroid
+    pca = PCA(n_components=3)
+    pca.fit(pts)
+    best_dot = 0
+    for i, component in enumerate(pca.components_):
+        if abs(np.dot(component, vec)) > best_dot:
+            # The principle component pointing most towards the center of the scene
+            # (dot product of the component and vec is greater) corresponds to the
+            # heading angle we want
+            best_dot = abs(np.dot(component, vec))
+            # Get rid of the +Z component of the vector (should be close to zero)
+            heading_vector = component[0:2]
+    return heading_vector 
 
-    # The heading angle that is more in the direction of <1,1> (dot product
-    # of the vector and <1,1> is greater) corresponds to the heading angle we want
-    
-    # Get rid of the +Z component of the vector (should be close to zero)
-    return None
 
-def gen_label(pts, class_name, pcd):
+def gen_label_line(classname, bbox, pcd):
     """
-    Generates label text for a set of points in a pointcloud
+    Returns the line of a label file corresponding to one box
 
     args:
-        pts: a list of the indices of every point
-        class_name: classification of the object contained within the points
-        pcd: open3d pointcloud
+        classname: String representing the name of the object
+        bbox: open3d bbox object
     """
-    obj = pcd.select_by_index(pts)
+    coords = bbox.get_box_points()
+    centroid = [np.average(coords[:,0]), np.average(coords[:,1]), np,average(coords[:,2])]
+    max_bound = bbox.get_max_bound()
+    min_bound = bbox.get_min_bound()
+    extents.append([max_bound[0]-min_bound[0], max_bound[1]-min_bound[1], max_bound[2]-min_bound[2]])
+    # Heading angle calculation done in a separate function :D
+    heading = get_heading_angle(bbox, centroid, np.mean(np.asarray(pcd.points), axis=0)
 
-    
+    return(f'{classname} {centroid[0]} {centroid[1]} {centroid[2]} {extent[0]} {extent{1} {extent[2]} {heading[0]} {heading[1]}')
+
+
+def gen_label(pts, pcd, imageid):
+    """
+    Generates label text for a pointcloud
+
+    args:
+        pts: Dictionary given from extract_walls
+        pcd: open3d pointcloud object
+        imageid: int from 1 to 10335
+    """
+    f = open(f'label_{imageid}.txt', 'w')
+    for obj in pts.keys():
+        obj_3d = pcd.select_by_index(pts[obj])
+        # Remove outliers from geometry before generating bounding box
+        obj_3d, ind = obj_3d.remove_statistical_outlier(nb_neighbors=300, std_ratio=.75)
+        # IF object class is wall, run RANSAC first
+        if obj[0:4] == 'wall':
+            # If multiple walls are classified together, this separates them
+            obj_list = segment_pt_cloud(obj_3d)
+            for plane in obj_list:
+                f.write(gen_label_line(obj, np.asarray(plane.get_oriented_bounding_box().get_box_points()), pcd)
+        else:
+            bbox = obj_3d.get_oriented_bounding_box()
+            f.write(gen_label_line(obj, np.asarray(bbox.get_box_points(), pcd)
+        pts = pcd.select_by_index(pts['obj'])
+        # Get heading angle
+
 
 def parse_planes(json):
     """
@@ -370,6 +412,7 @@ def parse_planes(json):
         data.extend(plane['extent'])
         write_plane.writerow(data)
         write_transform.writerow(plane['transform'])
+
 
 def generate_v1_data():
     """
@@ -400,9 +443,7 @@ def generate_v1_data():
             for i, point in enumerate(pt_cloud):
                 # and this one :((
                 f.write(f'{round(point[0][0]*point[0][3],15)} {round(point[0][1]*point[0][3],15)} {round(point[0][2]*point[0][3],15)}\n')
-
         # get ground truth pointcloud and generate planes
-
         centers, extents, norms = segment_pt_cloud(f"cloud_{id_full}.ply")
         # write to text file
         print(os.listdir())
@@ -411,6 +452,7 @@ def generate_v1_data():
                 # pylint isn't mad, it's disappointed
                 f.write(f'plane, {centers[i][0]}, {centers[i][1]}, {centers[i][2]}, {extents[i][0]}, {extents[i][1]}, {extents[i][2]}, {norms[i][0]}, {norms[i][1]}, {norms[i][2]}\n')
         
+
 def process_depth():
     """
     One-time script to take all of the depth.mat files from the sunrgbd original data
@@ -432,7 +474,6 @@ def process_depth():
 
     for i, _ in enumerate(pool.imap_unordered(write_file, files),1):
         print(f'{i}/{len(files)} done')
-        
 
     pool.close()
     pool.join()
@@ -444,29 +485,11 @@ def parse_annotation(json):
     label_list = []
 
 
-
-
-"""
-with tqdm(total = len(files), desc="Writing cloud") as pbar:
-    for file in files:
-        depth_data = loadmat(f'{DATA_PATH}/depth/{file}')['instance']
-        with open(f'{DATA_PATH}/depth_ply/{file[:-3]}ply', 'w') as f:
-            f.write(f'ply\nformat ascii 1.0\nelement vertex {len(depth_data)}\nproperty double x\nproperty double y\nproperty double z\nend_header\n')
-            with tqdm(total=len(depth_data), desc="Writing points") as pbar2:
-                for i, point in enumerate(depth_data):
-                    f.write(f'{round(point[0],15)} {round(point[1],15)} {round(point[2],15)}\n')
-                    pbar2.update(1)
-        pbar.update(1)
-        """
-
-    
-#quick script
-#j = remap('demo_files/second_test/0000041.jpg', 'demo_files/second_test/0000041.png')
-#pc = gen_point_cloud(j, Image.open('demo_files/second_test/0000041.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
-#write_ply_file(pc, 'demo_files/second_test/0000041.ply')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ply', action='store_true', help='Generate ply files from extracted data')
+    parser.add_argument('--test', action='store_true', help='writes ply file for every object in scen 00005')
+    parser.add_argument('--second_test', action='store_true')
     args = parser.parse_args()
 
     if args.ply:
@@ -477,4 +500,14 @@ if __name__ == '__main__':
         pool.close()
         pool.join()
         pool.close()
-
+    
+    if args.test:
+        pts = extract_walls('demo_files/formatted_data_test/seg_00005.mat')
+        pcd = o3d.io.read_point_cloud('demo_files/formatted_data_test/pcd_00006.ply')
+        for key in pts.keys():
+            pcd_sub = pcd.select_by_index(pts[key])
+            o3d.io.write_point_cloud(f'demo_files/formatted_data_test/{key}.ply', pcd_sub)
+    if args.second_test:
+        j = remap('demo_files/second_test/0000041.jpg', 'demo_files/second_test/0000041.png')
+        pc = gen_point_cloud(j, Image.open('demo_files/second_test/0000041.jpg'), np.array([529.500000, 0.000000, 365.000000, 0.000000, 529.500000 ,265.000000, 0, 0, 1]))
+        write_ply_file(pc, 'demo_files/second_test/0000041.ply')
