@@ -436,7 +436,7 @@ def gen_label(pts, pcd, imageid):
                 f.write(gen_label_line(f'wall_{i}', wall_bbox, pcd))
         else:
             bbox=obj_3d.get_oriented_bounding_box()
-            f.write(gen_label_line(obj, bbox, pcd))
+            f.write(gen_label_line(obj[0:obj.index('_')], bbox, pcd))
         # Get heading angle
 
 
