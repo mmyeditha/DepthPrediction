@@ -61,6 +61,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var raycasts: [[Float]] = []
     var lastAnnouncementTime = Date()
     static let announcementInterval = 2.0
+    var meters = true;
+    var useFeaturePoints = false;
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -164,7 +166,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 context.render(rotatedImage, to: pixelBuffer!)
                 //self.raycasts = self.raycastMiddlePixel(frame: frame)
                 let uiImage = pixelBuffer!.toUIImage()
-                print(CVPixelBufferGetWidth(frame.capturedImage))
+                //print(CVPixelBufferGetWidth(frame.capturedImage))
                 if let frameee = pixelBuffer {
                     self.predict(with: frameee)
                 }
@@ -261,26 +263,28 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             //self.imgArr = convert1DTo2D(linspace: output)
             // Prints midpoint, useful for haptics and grayscale calibration
             if let imgArr = self.imgArr {
-                var midpt = imgArr[79][63]
-                var minAngle: Float?
-                var distanceAtMinAngle: Float?
-                if let frame = arView.session.currentFrame, let pointCloud = frame.rawFeaturePoints {
-                    let opticalAxis = -simd_float3(frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.y, frame.camera.transform.columns.2.z)
-                    let cameraCenter = simd_float3(frame.camera.transform.columns.3.x, frame.camera.transform.columns.3.y, frame.camera.transform.columns.3.z)
-                    for pt in pointCloud.points {
-                        let relativePosition = pt - cameraCenter
-                        let angle = acos(simd_dot(relativePosition, opticalAxis)/(simd_length(relativePosition) * simd_length(opticalAxis)))
-                        if minAngle == nil || angle < minAngle! {
-                            minAngle = angle
-                            distanceAtMinAngle = simd_length(relativePosition)
+                var midpt = imgArr[80][64]
+                if useFeaturePoints {
+                    var minAngle: Float?
+                    var distanceAtMinAngle: Float?
+                    if let frame = arView.session.currentFrame, let pointCloud = frame.rawFeaturePoints {
+                        let opticalAxis = -simd_float3(frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.y, frame.camera.transform.columns.2.z)
+                        let cameraCenter = simd_float3(frame.camera.transform.columns.3.x, frame.camera.transform.columns.3.y, frame.camera.transform.columns.3.z)
+                        for pt in pointCloud.points {
+                            let relativePosition = pt - cameraCenter
+                            let angle = acos(simd_dot(relativePosition, opticalAxis)/(simd_length(relativePosition) * simd_length(opticalAxis)))
+                            if minAngle == nil || angle < minAngle! {
+                                minAngle = angle
+                                distanceAtMinAngle = simd_length(relativePosition)
+                            }
                         }
+                        print("minAngle \(minAngle)")
                     }
-                    print("minAngle \(minAngle)")
-                }
-                if let minAngle = minAngle, minAngle < 0.5 {
-                    midpt = Float(distanceAtMinAngle!)
-                } else {
-                    midpt = 0.0
+                    if let minAngle = minAngle, minAngle < 0.5 {
+                        midpt = Float(distanceAtMinAngle!)
+                    } else {
+                        midpt = -1.0
+                    }
                 }
                 //if -lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
                 DispatchQueue.main.async {
@@ -289,9 +293,19 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     // Plays haptics
                     self.desiredInterval = Double(midpt/5)
                     self.haptic(time: NSTimeIntervalSince1970)
-                    if self.frameCount % 15 == 0 {
-                        self.announce(announcement: "object is " + String(format: "%.1f", midpt) + " meters away")
-                        //self.lastAnnouncementTime = Date()
+                    if midpt < 0 {
+                        self.announce(announcement: "cannot detect any feature points in this direction")
+                    }
+                    if -self.lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
+                        self.lastAnnouncementTime = Date()
+                        if self.meters {
+                            self.announce(announcement: String(format: "%.1f", midpt))
+                            print("\(midpt) meters")
+                        } else {
+                            let midptFeet = 3.28 * midpt;
+                            self.announce(announcement: String(format: "%.1f", midptFeet))
+                            print("\(midptFeet) feet")
+                        }
                     }
                 }
             }
@@ -467,7 +481,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     } else {
                         vec *= 0
                     }
-                    ptCloud.append(rotation*simd_float4(-vec[0], vec[1], -vec[2], 1)*transform.transpose)
+                    ptCloud.append(rotation*simd_float4(vec[0], -vec[1], -vec[2], 1)*transform.transpose)
                     
                 }
             }
