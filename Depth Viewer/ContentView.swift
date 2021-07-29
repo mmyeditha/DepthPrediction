@@ -15,18 +15,29 @@ import Vision
 
 struct ContentView : View {
     // @State var liveDepthPrediction = LiveDepthPrediction()
-    @State var sliderValue = 0.5
+//    @State var showingPopover = false
     @ObservedObject var viewProvider: ARViewProvider = ARViewProvider.shared
     var body: some View {
         VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0, content: {
+            Button("Capture", action: buttonPress)
             ARViewContainer()
+            if ARViewProvider.shared.img != nil {
+                Image(uiImage: ARViewProvider.shared.img!)
+            }
+//            Button("Freeze Image") {
+//                ARViewProvider.shared.frozenImage = ARViewProvider.shared.arView.session.currentFrame?.capturedImage.toUIImage()
+//                print("frozenImage", ARViewProvider.shared.frozenImage)
+//                showingPopover = true
+//            }
+//            .popover(isPresented: $showingPopover) {
+//                Image(uiImage: ARViewProvider.shared.frozenImage!).accessibility(hidden: false)
+//            }
         })
     }
     
-//    // Updates slider value in ARViewProvider
-//    func updateSlider() {
-//        ARViewProvider.shared.updateSliderValue(sliderValue: sliderValue)
-//    }
+    func buttonPress() {
+        ARViewProvider.shared.buttonPressed = true;
+    }
     
 }
 
