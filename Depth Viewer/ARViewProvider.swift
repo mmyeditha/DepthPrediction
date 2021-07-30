@@ -41,7 +41,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }()
     
     // Captures and uploads every frameCaptureRate'th frame for uploading to Firebase
-    let frameCaptureRate: Int = 10
+    let frameCaptureRate: Int = 20
     // If there is no need to upload data to Firebase, set this to false
     let areWeUploadingToFirebase = false
     
@@ -63,6 +63,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     static let announcementInterval = 2.0
     var meters = true;
     var useFeaturePoints = false;
+    var isAnnouncing = false;
     
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
@@ -280,33 +281,36 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         }
                         print("minAngle \(minAngle)")
                     }
-                    if let minAngle = minAngle, minAngle < 0.5 {
+                    if let minAngle = minAngle, minAngle < 0.75 {
                         midpt = Float(distanceAtMinAngle!)
+                    }
+//                    else {
+//                        midpt = -5.0
+//                    }
+                }
+//                if self.isAnnouncing && midpt < 0 {
+//                    self.announce(announcement: "cannot detect any feature points in this direction")
+//                }
+                if self.isAnnouncing && -self.lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
+                    self.lastAnnouncementTime = Date()
+                    if self.meters {
+                        self.announce(announcement: String(format: "%.1f", midpt))
+                        print("\(midpt) meters")
                     } else {
-                        midpt = -1.0
+                        let midptFeet = 3.28 * midpt;
+                        self.announce(announcement: String(format: "%.1f", midptFeet))
+                        print("\(midptFeet) feet")
                     }
                 }
                 //if -lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
                 DispatchQueue.main.async {
                     // Sends the signal that the variable is changing in the main Dispatch Queue
                     self.objectWillChange.send()
-                    // Plays haptics
-                    self.desiredInterval = Double(midpt/5)
-                    self.haptic(time: NSTimeIntervalSince1970)
-                    if midpt < 0 {
-                        self.announce(announcement: "cannot detect any feature points in this direction")
-                    }
-                    if -self.lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
-                        self.lastAnnouncementTime = Date()
-                        if self.meters {
-                            self.announce(announcement: String(format: "%.1f", midpt))
-                            print("\(midpt) meters")
-                        } else {
-                            let midptFeet = 3.28 * midpt;
-                            self.announce(announcement: String(format: "%.1f", midptFeet))
-                            print("\(midptFeet) feet")
-                        }
-                    }
+                    // Plays haptics if object is within 12 feet
+//                    if midpt <= 4.0 {
+//                        self.desiredInterval = Double(midpt/5)
+//                        self.haptic(time: NSTimeIntervalSince1970)
+//                    }
                 }
             }
         }
@@ -468,7 +472,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             // extrapolate extra pixels that we'll just fill with a 0 depth value
             for i in 0...159 {
                 for j in 0...127 {
-                    // Remapping original 4:3 resolution (varies by phone) to downscaled 4:3 resolution (299x223)
+                    // Remapping original 4:3 resolution (varies by phone) to downscaled 5:4 resolution (159x127)
                     let iRemapped = (Float(i)/159.0)*Float(CVPixelBufferGetWidth(frame.capturedImage))
                     let jRemapped = (Float(j)/127.0)*Float(CVPixelBufferGetHeight(frame.capturedImage))
 

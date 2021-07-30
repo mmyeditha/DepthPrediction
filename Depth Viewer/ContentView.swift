@@ -17,15 +17,19 @@ struct ContentView : View {
     // @State var liveDepthPrediction = LiveDepthPrediction()
 //    @State var showingPopover = false
     @ObservedObject var viewProvider: ARViewProvider = ARViewProvider.shared
-    @State var useFeaturePoints = true
+    @State dynamic var useFeaturePoints = false
+    
     var body: some View {
         VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0, content: {
-            HStack {
-                Button("Feet", action: toggleFeet)
+            VStack(alignment: .leading, spacing: 0, content: {
+                Toggle("Use Feature Points", isOn: $useFeaturePoints)
+                    .onChange(of: useFeaturePoints, perform: { value in
+                        viewProvider.useFeaturePoints = useFeaturePoints
+                    })
                 Button("Meters", action: toggleMeters)
-            }
+                Button("Feet", action: toggleFeet)
+            })
             .buttonStyle(BlueButton())
-            Button("Use Feature Points Option", action: toggleFeaturePoints)
             //Button("Capture", action: buttonPress)
             ARViewContainer()
 //            if ARViewProvider.shared.img != nil {
@@ -43,28 +47,21 @@ struct ContentView : View {
     }
     
     func buttonPress() {
-        ARViewProvider.shared.buttonPressed = true;
+        viewProvider.buttonPressed = true;
     }
     
     func toggleMeters() {
-        ARViewProvider.shared.meters = true;
-        ARViewProvider.shared.announce(announcement: "Meters")
+        viewProvider.meters = true;
+        viewProvider.announce(announcement: "Meters");
+        viewProvider.isAnnouncing = true;
     }
     
     func toggleFeet() {
-        ARViewProvider.shared.meters = false;
-        ARViewProvider.shared.announce(announcement: "Feet")
+        viewProvider.meters = false;
+        viewProvider.announce(announcement: "Feet");
+        viewProvider.isAnnouncing = true;
     }
     
-    func toggleFeaturePoints() {
-        if ARViewProvider.shared.useFeaturePoints {
-            ARViewProvider.shared.useFeaturePoints = false
-            ARViewProvider.shared.announce(announcement: "Using Depth Viewer algorithm.")
-        } else {
-            ARViewProvider.shared.useFeaturePoints = true
-            ARViewProvider.shared.announce(announcement: "Using AR feature points.")
-        }
-    }
 }
 
 struct BlueButton: ButtonStyle {
