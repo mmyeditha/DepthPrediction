@@ -1,9 +1,3 @@
-from sklearn.decomposition import PCA
-from scipy.io import loadmat
-from multiprocessing import Pool
-import sys
-sys.path.insert(1, 'tensorflow/')
-from predict import predict
 import json
 import csv
 import cv2
@@ -11,8 +5,15 @@ import os
 import shutil
 import argparse
 import re
+import math
 import random
 import numpy as np
+import sys
+sys.path.insert(1, 'tensorflow/')
+from sklearn.decomposition import PCA
+from scipy.io import loadmat
+from multiprocessing import Pool
+from predict import predict
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 from PIL import Image, ImageOps
@@ -300,7 +301,7 @@ def gen_point_cloud(depth, image, intrinsics, extrinsics):
     return (rot_x@(extrinsics@pcd)).T
 
 
-def extract_objects(mat, pcd_points):
+def extract_objects(mat, pcd_points, fcrn=False, mat_new=None, name_list=None):
     """
     args:
         mat: String referencing the path to the seg.mat file from dataset,
@@ -315,10 +316,14 @@ def extract_objects(mat, pcd_points):
     and this should show you all the points that make up that object.
     """
     pcd = o3d.io.read_point_cloud(pcd_points)
-    segs = loadmat(mat)
-    seglabel = segs['seglabel']
-    names = segs['names'][0]
-    surfaces = {}
+    if fcrn:
+        seglabel = mat_new
+        names = name_list
+    else:
+        segs = loadmat(mat)
+        seglabel = segs['seglabel']
+        names = segs['names'][0]
+        surfaces = {}
     whitelist = ['bed', 'table', 'sofa', 'chair', 'toilet',
         'desk', 'dresser', 'night_stand', 'bookshelf', 'bathtub']
     walls = [x+1 for x in range(len(names)) if names[x][0] == 'wall']
@@ -390,7 +395,7 @@ def get_heading_angle(bbox, centroid, obj_centroid):
     return heading_vector
 
 
-def gen_label_line(classname, bbox, pcd):
+def gen_label_line(classname, bbox, pcd, debug=False):
     """
     Returns the line of a label file corresponding to one box
 
@@ -398,20 +403,17 @@ def gen_label_line(classname, bbox, pcd):
         classname: String representing the name of the object
         bbox: open3d bbox object
     """
-    coords = np.asarray(bbox.get_box_points())
-    centroid = [np.average(coords[:, 0]), np.average(
-        coords[:, 1]), np.average(coords[:, 2])]
-    max_bound = bbox.get_max_bound()
-    min_bound = bbox.get_min_bound()
-    extent = [max_bound[0]-min_bound[0], max_bound[1] -
+    center, extent = rotate_points(bbox)
                    min_bound[1], max_bound[2]-min_bound[2]]
     # Heading angle calculation done in a separate function :D
     heading = get_heading_angle(bbox, centroid, np.mean(np.asarray(pcd.points), axis=0))
-    line = f'{classname} {centroid[0]} {centroid[1]} {centroid[2]} {extent[0]} {extent[1]} {extent[2]} {heading[0]} {heading[1]}\n' 
+    line = f'{classname} {round(centroid[0],3)} {round(float(centroid[1]),3)} {round(float(centroid[2]),3)} {round(float(extent[0]),3)} {round(float(extent[1]),3)} {round(float(extent[2]),3)} {round(heading[0],3)} {round(heading[1],3)}\n' 
+    if debug:
+        print(coords)
     return line
 
 
-def gen_label(pts, pcd, imageid):
+def gen_label(pts, pcd, imageid, debug=False):
     """
     Generates label text for a pointcloud
 
@@ -427,16 +429,15 @@ def gen_label(pts, pcd, imageid):
         obj_3d, ind=obj_3d.remove_statistical_outlier(
             nb_neighbors=300, std_ratio=.75)
         # IF object class is wall, run RANSAC first
-        if obj[0:4] == 'wall':
+        # if obj[0:4] == 'wall':
             # If multiple walls are classified together, this separates them
-            obj_list=segment_pt_cloud(obj_3d)
-            for i, plane in enumerate(obj_list):
-                print('writing plane')
-                wall_bbox = plane.get_oriented_bounding_box()
-                f.write(gen_label_line(f'wall_{i}', wall_bbox, pcd))
-        else:
-            bbox=obj_3d.get_oriented_bounding_box()
-            f.write(gen_label_line(obj[0:obj.index('_')], bbox, pcd))
+            # obj_list=segment_pt_cloud(obj_3d)
+            # for i, plane in enumerate(obj_list):
+                # print('writing plane')
+                # wall_bbox = plane.get_oriented_bounding_box()
+                # f.write(gen_label_line(f'wall_{i}', wall_bbox, pcd))
+        bbox=obj_3d.get_oriented_bounding_box()
+        f.write(gen_label_line(obj[0:obj.index('_')], bbox, pcd, debug))
         # Get heading angle
 
 
@@ -513,6 +514,55 @@ def process_depth():
     pool.close()
 
 
+def rotate_points(bbox, head):
+    """
+    Given eight bounding box points, rotates them to have heading of <1,0>
+
+    When bounding box points are rotated at an angle, l, w, and h extents
+    do not translate to a fitted bounding box. So, for the purposes of the
+    model (yawn), we have to put box centroid and extents in terms of a
+    rotated bbox that has a heading vector in the direction of <1,0> or +x.
+
+    args:
+        bbox: The open3d boundingbox class corresponding to a bound box in
+        a scene
+
+    returns the center and l, w, h extents of the box with a heading of <1,0>
+    """
+    angle = math.acos(np.dot(head, np.array([1,0]))/(np.linalg.norm(head)))
+    rot = np.array([[math.cos(angle), -math.sin(angle)],[math.sin(angle),math.cos(angle)])
+    coords = bbox.get_box_points()
+    new_pts = rot@(coords.T)
+    max_bound = np.array([new_pts[:,0].max(), new_pts[:,1].max(), new_pts[:,2].max()])
+    min_bound = np.array([new_pts[:,0].min(), new_pts[:,1].min(), new_pts[:,2].min()])
+    center = (max_bound+min_bound)/2
+    extent = np.array([max_bound[0]-min_bound[0],max_bound[1]-min_bound[1],max_bound[2]-min_bound[2]])
+    return center, extent
+
+
+def seg_fcrn(seg):
+    """
+    Takes segmentation data for original image and maps it to FCRN size
+
+    args:
+        seg: the seg.mat file corresponding to the fcrn image to segment
+
+    returns a 128x160 array of segments for each FCRN pixel and names defining
+    what each number mean as an object.
+    """
+    segs = loadmat(seg)
+    seglabel = segs['seglabel']
+    names = segs['names'][0]
+    # can i get a woot woot for numpy?
+    X, Y = np.meshgrid(np.arange(0, 128, 1), np.arange(0, 160, 1))
+    X_remapped = ((X/128)*530).astype('uint32')
+    Y_remapped = ((Y/160)*662+34).astype('uint32')
+    # x and y are defined kinda weirdly here. The image is 730x530 where
+    # 730 is the horizontal axis, I'm just defining 730 as y_remapped beacuse
+    # it makes more sense to me to index with seglabel[x,y]
+    seg_remapped = seglabel[X_remapped,Y_remapped]
+    return seg_remapped.T, names
+
 #---------------------------------Parser Arguments---------------------------------
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
@@ -553,7 +603,7 @@ if __name__ == '__main__':
                 'demo_files/second_test/0000041.png')
         pc=gen_point_cloud(j, Image.open('demo_files/second_test/0000041.jpg'), np.array(
             [529.500000, 0.000000, 365.000000, 0.000000, 529.500000, 265.000000, 0, 0, 1]))
-        write_ply_file(pc, 'demo_files/seconid_test/0000041.ply')
+        write_ply_file(pc, 'demo_files/second_test/0000041.ply')
 
     if args.demo:
         indices = random.sample(range(0,10335),15)

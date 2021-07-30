@@ -224,6 +224,9 @@ def extract_pc_in_box3d(pc, box3d):
 
 
 def my_compute_box_3d(center, size, heading_angle):
+    """
+    I edited this to work with the way my extraction formats data :D
+    """
     R = rotz(-1*heading_angle)
     l,w,h = size
     x_corners = [-l,l,l,-l,-l,l,l,-l]
