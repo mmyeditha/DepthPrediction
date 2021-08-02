@@ -108,6 +108,22 @@ def gen_ply_file(image_id):
         data_path, f'{image_id+1:05}/pcd_{image_id+1+1:05}'))
 
 
+def gen_fcrn_ply(image_id):
+    data_path = 'votenet/sunrgbd/sunrgbd_plane/{image_id+1:05}'
+    heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img))[0]
+    seg_new = fcrn_seg(f'{data_path}/seg_{image_id+1:05}')
+    rgb_img = f'{data_path}/rgb_{image_id+1:05}'
+    intrinsic_list = re.split(' |\n', open(os.path.join(
+        data_path, f'{image_id+1:05}/intrinsics_{image_id+1:05}.txt')).read())[0:9]
+    extrinsic_list = re.split(' |\n', open(os.path.join(
+        data_path, f'{image_id+1:05}/extrinsic_{image_id+1:05}.txt')).read())[0:12]
+    extrinsic_list.extend(['0', '0', '0', '1'])
+    pc = gen_point_cloud(heatmap, rgb_img, np.asarray(
+        intrinsic), np.asarray(extrinsic))
+    write_ply_file(pc, os.path.join(
+        data_path, f'fcrn_{image_id+1+1:05}'))
+
+
 def predict_clean(image_path):
     return predict('models/NYU_FCRN.ckpt', Image.open(image_path))[0]
 
@@ -269,6 +285,8 @@ def write_ply_file(pc, name):
 def gen_point_cloud(depth, image, intrinsics, extrinsics):
     # intrinsics = np.asmatrix(np.reshape(metadata['intrinsics'], (3,3)).swapaxes(0,1))
     """
+    Projects rgbd data into 3D space using camera intrinsics and extrinsics
+
     depth: depth data as an M x N numpy array
     image: the original rgb image (do I really need this?)
     intrinsics: 9-element numpy array (will be 3x3)
@@ -283,7 +301,7 @@ def gen_point_cloud(depth, image, intrinsics, extrinsics):
     height, width = depth.shape
     height_rgb, width_rgb, _ = cv2.imread(image).shape
     # Creating a threshold. Pixels with brightness above the 97th percentile
-    # get cancelled. This is because SUNRGBD data has random bright spots that
+    # get cancelled. This is because SUNRGBD depth_bfx data has random bright spots that
     # mess with the normalization of depth values
     perc = np.percentile(depth, 97)
     ii, jj = np.meshgrid(np.arange(0, width, 1), np.arange(0, height, 1))
@@ -310,9 +328,10 @@ def extract_objects(mat, pcd_points, fcrn=False, mat_new=None, name_list=None):
         means what object.
         pcd_points: ply file representing a point cloud
 
-    returns a dictionary mapping objects to the pointcloud indices of points that make up that object.
-    Ex. a key will be 'wall_0', and the value will be a list of indices that make up the points that fall
-    within that wall. To visualize, open the point cloud with o3d, then run o3d.select_by_points(<point list>)
+    returns a dictionary mapping objects to the pointcloud indices of points that 
+    make up that object. Ex. a key will be 'wall_0', and the value will be a list 
+    of indices that make up the points that fall within that wall. To visualize,
+    open the point cloud with o3d, then run o3d.select_by_points(<point list>) 
     and this should show you all the points that make up that object.
     """
     pcd = o3d.io.read_point_cloud(pcd_points)
@@ -330,12 +349,11 @@ def extract_objects(mat, pcd_points, fcrn=False, mat_new=None, name_list=None):
     ceilings = [x+1 for x in range(len(names)) if names[x][0] == 'ceiling']
     floor = [x+1 for x in range(len(names)) if names[x][0] == 'floor']
     other = [x+1 for x in range(len(names)) if names[x][0] in whitelist]
-    # Eventually change these to be dependent on list length, not just only for SUNGRB data
     for i in range(seglabel.shape[0]):
         for j in range(seglabel.shape[1]):
             if seglabel[i][j] in walls:
-                # Run RANSAC on the wall to make sure that it is breaking
-                # each wall down.
+                # Sometimes walls aren't defined separately. Maybe look int
+                # running RANSAC here to separate out walls definitively
                 if f'wall_{seglabel[i][j]}' in surfaces.keys():
                     surfaces[f'wall_{seglabel[i][j]}'].append(i*seglabel.shape[1]+j)
                 else:
@@ -355,15 +373,6 @@ def extract_objects(mat, pcd_points, fcrn=False, mat_new=None, name_list=None):
                     surfaces[f'other_{seglabel[i][j]}'].append(i*seglabel.shape[1]+j)
                 else:
                     surfaces[f'other_{seglabel[i][j]}'] = [i*seglabel.shape[1]+j]
-
-    # If multiple walls are classified together, this separates them
-#    for i, surface in enumerate(list(surfaces)):
-#        if surface[0:4] == 'wall':
-#            print(surfaces[surface])
-#            obj_list=segment_pt_cloud(pcd.select_by_index(surfaces[surface]))
-#            if len(obj_list) != 0:
-#                surfaces[f'{surface}_{i}'] = [x for x in obj_list]
-#            surfaces.pop(surface)
     return surfaces
 
 
@@ -390,7 +399,7 @@ def get_heading_angle(bbox, centroid, obj_centroid):
             # (dot product of the component and vec is greater) corresponds to the
             # heading angle we want
             best_dot = abs(np.dot(component, vec))
-            # Get rid of the +Z component of the vector (should be close to zero)
+            # Get rid of the +Z component of the vector (should be close to zero anyway)
             heading_vector = component[0:2]
     return heading_vector
 
@@ -428,61 +437,8 @@ def gen_label(pts, pcd, imageid, debug=False):
         # Remove outliers from geometry before generating bounding box
         obj_3d, ind=obj_3d.remove_statistical_outlier(
             nb_neighbors=300, std_ratio=.75)
-        # IF object class is wall, run RANSAC first
-        # if obj[0:4] == 'wall':
-            # If multiple walls are classified together, this separates them
-            # obj_list=segment_pt_cloud(obj_3d)
-            # for i, plane in enumerate(obj_list):
-                # print('writing plane')
-                # wall_bbox = plane.get_oriented_bounding_box()
-                # f.write(gen_label_line(f'wall_{i}', wall_bbox, pcd))
         bbox=obj_3d.get_oriented_bounding_box()
         f.write(gen_label_line(obj[0:obj.index('_')], bbox, pcd, debug))
-        # Get heading angle
-
-
-def generate_v1_data():
-    """
-    Automated script to run through all of the sunrgbd_trainval data and generates
-    labels and planes.
-
-    DEPRECATED NOW, will soon turn this into a script to pull from the raw OFFICIAL_SUNRGBD
-    and convert it the ~new~ way.
-    """
-    # Extract intrinsic matrices from text file
-    intrinsic_list=open(os.path.join(
-        DATA_PATH, 'intrinsics.txt')).read().split('\n')
-    for image_id in tqdm(range(1, 10335)):
-        # Extract single intrinsic as numpy matrix
-        intrinsic=np.asarray([float(i)
-                             for i in intrinsic_list[image_id].split()[1:]])
-        # Generate a point cloud for the image_id
-        # first, open the original image in PILLOW
-        id_full='%06d' % (int('000000')+image_id)
-        img_path=os.path.join(DATA_PATH, f'image/{id_full}.jpg')
-        rgb_img=Image.open(img_path)
-        # run the image through the network
-        depth_img=predict('tensorflow/models/NYU_FCRN.ckpt', rgb_img)
-        # generate a point cloud
-        pt_cloud=gen_point_cloud(depth_img, rgb_img, intrinsic)
-        # generate ply file from FCRN pointcloud
-        with open(f'cloud_{id}.ply', 'w') as f:
-            # I can feel pylint's disappointment in this line's length
-            f.write(
-                f'ply\nformat ascii 1.0\nelement vertex {len(pt_cloud)}\nproperty double x\nproperty double y\nproperty double z\nend_header\n')
-            for i, point in enumerate(pt_cloud):
-                # and this one :((
-                f.write(
-                    f'{round(point[0][0]*point[0][3],15)} {round(point[0][1]*point[0][3],15)} {round(point[0][2]*point[0][3],15)}\n')
-        # get ground truth pointcloud and generate planes
-        centers, extents, norms=segment_pt_cloud(f"cloud_{id_full}.ply")
-        # write to text file
-        print(os.listdir())
-        with open(f'{DATA_PATH}/label_gen/{id_full}.txt', 'w') as f:
-            for i, _ in enumerate(centers):
-                # pylint isn't mad, it's disappointed
-                f.write(
-                    f'plane, {centers[i][0]}, {centers[i][1]}, {centers[i][2]}, {extents[i][0]}, {extents[i][1]}, {extents[i][2]}, {norms[i][0]}, {norms[i][1]}, {norms[i][2]}\n')
 
 
 def process_depth():
@@ -536,7 +492,8 @@ def rotate_points(bbox, head):
     max_bound = np.array([new_pts[:,0].max(), new_pts[:,1].max(), new_pts[:,2].max()])
     min_bound = np.array([new_pts[:,0].min(), new_pts[:,1].min(), new_pts[:,2].min()])
     center = (max_bound+min_bound)/2
-    extent = np.array([max_bound[0]-min_bound[0],max_bound[1]-min_bound[1],max_bound[2]-min_bound[2]])
+    extent = np.array([max_bound[0]-min_bound[0],max_bound[1]-min_bound[1],
+        max_bound[2]-min_bound[2]])
     return center, extent
 
 
@@ -569,10 +526,12 @@ if __name__ == '__main__':
     parser.add_argument('--ply', action='store_true',
                         help='Generate ply files from extracted data')
     parser.add_argument('--test', action='store_true',
-                        help='writes ply file for every object in scen 00005')
+                        help='writes ply file for every object in scene 00005')
     parser.add_argument('--second_test', action='store_true')
     parser.add_argument('--test_label', action='store_true')
     parser.add_argument('--demo', action='store_true', help='Show functionality on random images')
+    parser.add_argument('--gen_data', action='store_true', help='Generate the data my god i really didnt think i would get here my god its happening')
+    parser.add_argument('--gen_fcrn_ply', action='store_true')
     args=parser.parse_args()
     
     if args.ply:
@@ -613,3 +572,16 @@ if __name__ == '__main__':
                 segs = extract_objects(f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/seg_{indX:05}.mat', f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/pcd_{indX+1:05}.ply')
                 gen_label(segs, pcd, indX)
                 pbar.update(1)
+
+    if args.gen_data:
+        for i in range(0,10335):
+            return None
+
+    if args.gen_fcrn_ply:
+        pool = Pool()
+        for i, _ in enumerate(pool.imap.unordered(gen_fcrn_ply, range(10335)), 1):
+            print(f'{i}/10335 done')
+        pool.close()
+        pool.join()
+        pool.close()
+    
