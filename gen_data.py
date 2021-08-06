@@ -109,15 +109,19 @@ def gen_ply_file(image_id):
 
 
 def gen_fcrn_ply(image_id):
-    data_path = 'votenet/sunrgbd/sunrgbd_plane/{image_id+1:05}'
+    data_path = f'votenet/sunrgbd/sunrgbd_plane/{image_id+1:05}'
+    rgb_img = f'{data_path}/rgb_{image_id+1:05}.jpg'
     heatmap = predict('tensorflow/models/NYU_FCRN.ckpt', Image.open(rgb_img))[0]
-    seg_new = fcrn_seg(f'{data_path}/seg_{image_id+1:05}')
-    rgb_img = f'{data_path}/rgb_{image_id+1:05}'
+    heatmap = np.reshape(heatmap, (128,160))
+    seg_new = seg_fcrn(f'{data_path}/seg_{image_id+1:05}')
     intrinsic_list = re.split(' |\n', open(os.path.join(
-        data_path, f'{image_id+1:05}/intrinsics_{image_id+1:05}.txt')).read())[0:9]
+        data_path, f'intrinsics_{image_id+1:05}.txt')).read())[0:9]
     extrinsic_list = re.split(' |\n', open(os.path.join(
-        data_path, f'{image_id+1:05}/extrinsic_{image_id+1:05}.txt')).read())[0:12]
+        data_path, f'extrinsic_{image_id+1:05}.txt')).read())[0:12]
     extrinsic_list.extend(['0', '0', '0', '1'])
+    intrinsic = [float(x) for x in intrinsic_list]
+    extrinsic = [float(x) for x in extrinsic_list]
+    print(rgb_img)
     pc = gen_point_cloud(heatmap, rgb_img, np.asarray(
         intrinsic), np.asarray(extrinsic))
     write_ply_file(pc, os.path.join(
@@ -176,7 +180,6 @@ def segment_pt_cloud(cloud, show=False, noisy=False):
         coords = np.asarray(outlier_cloud.points)
         min_bound = cl.get_min_bound()
         max_bound = cl.get_max_bound()
-        print(max_bound, min_bound)
         extents.append([max_bound[0]-min_bound[0], max_bound[1] -
                        min_bound[1], max_bound[2]-min_bound[2]])
         centers.append([(max_bound[0]+min_bound[0])/2, (max_bound[1] +
@@ -310,12 +313,12 @@ def gen_point_cloud(depth, image, intrinsics, extrinsics):
     iRemapped = (ii/width)*width_rgb
     jRemapped = (jj/height)*height_rgb
     vecs = np.stack((iRemapped, jRemapped, np.ones(
-        (height_rgb, width_rgb))), axis=2)
-    s = vecs.reshape((height_rgb*width_rgb, 3))
+        (height, width))), axis=2)
+    s = vecs.reshape((height*width, 3))
     normd = np.linalg.inv(intrinsics)@s.T
     newnorm = normd/(np.linalg.norm(normd, axis=0))
-    projected = newnorm*depth.reshape((height_rgb*width_rgb))
-    pcd = np.vstack((projected, np.ones((height_rgb*width_rgb))))
+    projected = newnorm*depth.reshape((height*width))
+    pcd = np.vstack((projected, np.ones((height*width))))
     return (rot_x@(extrinsics@pcd)).T
 
 
@@ -338,6 +341,7 @@ def extract_objects(mat, pcd_points, fcrn=False, mat_new=None, name_list=None):
     if fcrn:
         seglabel = mat_new
         names = name_list
+        surfaces = {}
     else:
         segs = loadmat(mat)
         seglabel = segs['seglabel']
@@ -412,11 +416,13 @@ def gen_label_line(classname, bbox, pcd, debug=False):
         classname: String representing the name of the object
         bbox: open3d bbox object
     """
-    center, extent = rotate_points(bbox)
-                   min_bound[1], max_bound[2]-min_bound[2]]
+    coords = np.asarray(bbox.get_box_points())
+    center = [np.average(coords[:, 0]), np.average(
+        coords[:, 1]), np.average(coords[:, 2])]
     # Heading angle calculation done in a separate function :D
-    heading = get_heading_angle(bbox, centroid, np.mean(np.asarray(pcd.points), axis=0))
-    line = f'{classname} {round(centroid[0],3)} {round(float(centroid[1]),3)} {round(float(centroid[2]),3)} {round(float(extent[0]),3)} {round(float(extent[1]),3)} {round(float(extent[2]),3)} {round(heading[0],3)} {round(heading[1],3)}\n' 
+    heading = get_heading_angle(bbox, center, np.mean(np.asarray(pcd.points), axis=0))
+    centroid, extent, xmin, ymin, xmax, ymax = rotate_points(bbox, heading)
+    line = f'{classname} {round(xmin,3)} {round(ymin,3)} {round(xmax,3)} {round(ymax,3)} {round(centroid[0],3)} {round(float(centroid[1]),3)} {round(float(centroid[2]),3)} {round(float(extent[0]),3)} {round(float(extent[1]),3)} {round(float(extent[2]),3)} {round(heading[0],3)} {round(heading[1],3)}\n' 
     if debug:
         print(coords)
     return line
@@ -431,14 +437,18 @@ def gen_label(pts, pcd, imageid, debug=False):
         pcd: open3d pointcloud object
         imageid: int from 1 to 10335
     """
-    f=open(f'label_{imageid}.txt', 'w')
+    f=open(f'votenet/sunrgbd/sunrgbd_plane/label/label_{imageid:05}.txt', 'w')
     for obj in pts.keys():
         obj_3d=pcd.select_by_index(pts[obj])
         # Remove outliers from geometry before generating bounding box
         obj_3d, ind=obj_3d.remove_statistical_outlier(
             nb_neighbors=300, std_ratio=.75)
-        bbox=obj_3d.get_oriented_bounding_box()
-        f.write(gen_label_line(obj[0:obj.index('_')], bbox, pcd, debug))
+        if np.asarray(obj_3d.points).size > 100:
+            try:
+                bbox=obj_3d.get_oriented_bounding_box()
+                f.write(gen_label_line(obj[0:obj.index('_')], bbox, pcd, debug))
+            except:
+                print('Issue getting bbox')
 
 
 def process_depth():
@@ -460,7 +470,6 @@ def process_depth():
             for i, point in enumerate(depth_data):
                 f.write(
                     f'{round(point[0],15)} {round(point[1],15)} {round(point[2],15)}\n')
-
 
     for i, _ in enumerate(pool.imap_unordered(write_file, files), 1):
         print(f'{i}/{len(files)} done')
@@ -486,15 +495,20 @@ def rotate_points(bbox, head):
     returns the center and l, w, h extents of the box with a heading of <1,0>
     """
     angle = math.acos(np.dot(head, np.array([1,0]))/(np.linalg.norm(head)))
-    rot = np.array([[math.cos(angle), -math.sin(angle)],[math.sin(angle),math.cos(angle)])
+    rot = np.array([[math.cos(angle), -math.sin(angle),0],
+        [math.sin(angle),math.cos(angle),0],[0,0,1]])
     coords = bbox.get_box_points()
-    new_pts = rot@(coords.T)
-    max_bound = np.array([new_pts[:,0].max(), new_pts[:,1].max(), new_pts[:,2].max()])
-    min_bound = np.array([new_pts[:,0].min(), new_pts[:,1].min(), new_pts[:,2].min()])
+    new_pts = rot@(np.asarray(coords).T)
+    max_bound = np.array([new_pts[0,:].max(),new_pts[1,:].max(),new_pts[2,:].max()])
+    min_bound = np.array([new_pts[0,:].min(),new_pts[1,:].min(),new_pts[2,:].min()])
     center = (max_bound+min_bound)/2
-    extent = np.array([max_bound[0]-min_bound[0],max_bound[1]-min_bound[1],
-        max_bound[2]-min_bound[2]])
-    return center, extent
+    xmin = min_bound[0]
+    ymin = min_bound[1]
+    xmax = max_bound[0]-min_bound[0]
+    ymax = max_bound[1]-min_bound[1]
+    extent = np.array([(max_bound[0]-min_bound[0])/2,(max_bound[1]-min_bound[1])/2,
+        (max_bound[2]-min_bound[2])/2])
+    return center, extent, xmin, ymin, xmax, ymax
 
 
 def seg_fcrn(seg):
@@ -510,18 +524,61 @@ def seg_fcrn(seg):
     segs = loadmat(seg)
     seglabel = segs['seglabel']
     names = segs['names'][0]
+    height = seglabel.shape[0]
+    width = (seglabel.shape[0]*5)//4
     # can i get a woot woot for numpy?
     X, Y = np.meshgrid(np.arange(0, 128, 1), np.arange(0, 160, 1))
-    X_remapped = ((X/128)*530).astype('uint32')
-    Y_remapped = ((Y/160)*662+34).astype('uint32')
+    X_remapped = ((X/128)*height).astype('uint32')
+    Y_remapped = ((Y/160)*width+(seglabel.shape[1]-width)//2).astype('uint32')
     # x and y are defined kinda weirdly here. The image is 730x530 where
     # 730 is the horizontal axis, I'm just defining 730 as y_remapped beacuse
     # it makes more sense to me to index with seglabel[x,y]
     seg_remapped = seglabel[X_remapped,Y_remapped]
     return seg_remapped.T, names
 
+
+def gen_label_data(i):
+    pcd = o3d.io.read_point_cloud(f'votenet/sunrgbd/sunrgbd_plane/{i+1:05}/fcrn_{i+2:05}.ply')
+    seg_remapped, names = seg_fcrn(
+                    f'votenet/sunrgbd/sunrgbd_plane/{i+1:05}/seg_{i+1:05}.mat')
+    segs = extract_objects('s',
+                    f'votenet/sunrgbd/sunrgbd_plane/{i+1:05}/fcrn_{i+2:05}.ply',
+                    fcrn=True, mat_new = seg_remapped, name_list = names)
+    gen_label(segs, pcd, i)
+
+
+def check_file_system():
+    os.chdir('votenet/sunrgbd/sunrgbd_plane')
+    folders = os.listdir()
+    missing_folders = []
+    incomplete_folders = []
+    for i in range(0,10335):
+        # Check that all folders exist
+        if f'{i+1:05}' not in folders:
+            print(f'Error! Folder {i} not found!')
+            missing_folders.append(i+1)
+        else:
+            contents = os.listdir(f'{i+1:05}')
+            # Check that core files exist
+            if f'rgb_{i+1:05}.jpg' not in contents or f'seg_{i+1:05}.mat' not in contents:
+                print("Core dataset files missing")
+                missing_folders.append(i+1)    
+            # Check that FCRN cloud was made for all folders
+            if f'fcrn_{i+2:05}.ply' not in contents:
+                print("FCRN Cloud Missing")
+                incomplete_folders.append(i+1)
+            else:
+                with open(f'{i+1:05}/fcrn_{i+2:05}.ply') as f:
+                    text = f.readlines()
+                    size = len(text)
+                    if size != 20487:
+                        print('ruh roh. the fcrn file wasnt generated right!')
+                        incomplete_folders.append(i+2)
+    return missing_folders, incomplete_folders
+
 #---------------------------------Parser Arguments---------------------------------
 if __name__ == '__main__':
+    # half of these arguments don't even do anything anymore :/
     parser=argparse.ArgumentParser()
     parser.add_argument('--ply', action='store_true',
                         help='Generate ply files from extracted data')
@@ -532,6 +589,11 @@ if __name__ == '__main__':
     parser.add_argument('--demo', action='store_true', help='Show functionality on random images')
     parser.add_argument('--gen_data', action='store_true', help='Generate the data my god i really didnt think i would get here my god its happening')
     parser.add_argument('--gen_fcrn_ply', action='store_true')
+    parser.add_argument('--fcrn_demo', action='store_true', help='blah')
+    parser.add_argument('--gen_label', action='store_true', help='Generate labels for allll the files')
+    parser.add_argument('--check_files', action='store_true',
+            help="Check that files within sunrgbd_plane all exist and aren't corrupted")
+    parser.add_argument('--org_data', action='store_true', help='Reorganize data')
     args=parser.parse_args()
     
     if args.ply:
@@ -543,45 +605,61 @@ if __name__ == '__main__':
         pool.join()
         pool.close()
 
-    if args.test:
-        pts=extract_objects('demo_files/00069/seg_00069.mat')
-        pcd=o3d.io.read_point_cloud(
-            'demo_files/00069/pcd_00070.ply')
-        for key in pts.keys():
-            pcd_sub=pcd.select_by_index(pts[key])
-            o3d.io.write_point_cloud(
-                f'demo_files/00069/{key}.ply', pcd_sub)
-
-    if args.test_label:
-        pcd = o3d.io.read_point_cloud('demo_files/00069/pcd_00070.ply')
-        segs = extract_objects('demo_files/00069/seg_00069.mat', 'demo_files/00069/pcd_00070.ply')
-        gen_label(segs, pcd, 69)
-
-    if args.second_test:
-        j=remap('demo_files/second_test/0000041.jpg',
-                'demo_files/second_test/0000041.png')
-        pc=gen_point_cloud(j, Image.open('demo_files/second_test/0000041.jpg'), np.array(
-            [529.500000, 0.000000, 365.000000, 0.000000, 529.500000, 265.000000, 0, 0, 1]))
-        write_ply_file(pc, 'demo_files/second_test/0000041.ply')
-
     if args.demo:
         indices = random.sample(range(0,10335),15)
         with tqdm(total=len(indices)) as pbar:
             for indX in indices:
                 pcd = o3d.io.read_point_cloud(f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/pcd_{indX+1:05}.ply')
-                segs = extract_objects(f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/seg_{indX:05}.mat', f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/pcd_{indX+1:05}.ply')
+                segs = extract_objects(
+                        f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/seg_{indX:05}.mat',
+                        f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/pcd_{indX+1:05}.ply')
                 gen_label(segs, pcd, indX)
                 pbar.update(1)
 
-    if args.gen_data:
-        for i in range(0,10335):
-            return None
+    if args.gen_label:
+        pool = Pool()
+        for i, _ in enumerate(pool.imap_unordered(gen_label_data, range(0,10335)), 1):
+            print(f'{i}/10335 done')
+
+    if args.fcrn_demo:
+         indices = random.sample(range(0,10335),10)
+         with tqdm(total=len(indices)) as pbar:
+             for indX in indices:
+                 pcd = o3d.io.read_point_cloud(
+                         f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/fcrn_{indX+1:05}.ply')
+                 seg_remapped, names = seg_fcrn(
+                         f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/seg_{indX:05}.mat')
+                 segs = extract_objects('s',
+                         f'votenet/sunrgbd/sunrgbd_plane/{indX:05}/fcrn_{indX+1:05}.ply',
+                         fcrn=True, mat_new = seg_remapped, name_list = names)
+                 gen_label(segs, pcd, indX)
+                 pbar.update(1)
+
+    if args.check_early:
+        m, inc = check_file_system()
+        print('missing folders:', m)
+        print('incomplete folders:', inc)
+        if len(m) == 0 and len(inc) == 0:
+            print('file system looks good')
+        else:
+            print('we gon fix it')
+
+    if args.org_data:
+        reorganize_data()
 
     if args.gen_fcrn_ply:
         pool = Pool()
-        for i, _ in enumerate(pool.imap.unordered(gen_fcrn_ply, range(10335)), 1):
-            print(f'{i}/10335 done')
-        pool.close()
-        pool.join()
-        pool.close()
-    
+        for i in range(52):
+            pool = Pool()
+            if i*200 == 10200:
+                for i, _ in enumerate(pool.imap_unordered(gen_fcrn_ply, range(i*200, 10335)), 1):  
+                    print(f'{i+(200*i)}/10335 done')
+                pool.close()
+                pool.join()
+                pool.close()
+            else:
+                for i, _ in enumerate(pool.imap_unordered(gen_fcrn_ply, range(i*200,i*200+200)),1):
+                    print(f'{i}/10335 done')
+                pool.close()
+                pool.join
+                pool.close

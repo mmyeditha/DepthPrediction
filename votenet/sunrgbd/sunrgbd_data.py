@@ -56,19 +56,22 @@ class sunrgbd_object(object):
         return self.num_samples
 
     def get_image(self, idx):
-        img_filename = os.path.join(self.image_dir, '%06d.jpg'%(idx))
+        img_filename = os.path.join(self.root_dir, '%05d(idx)', 'rgb_%05d.jpg'%(idx))
         return sunrgbd_utils.load_image(img_filename)
 
     def get_depth(self, idx): 
-        depth_filename = os.path.join(self.depth_dir, '%06d.mat'%(idx))
-        return sunrgbd_utils.load_depth_points_mat(depth_filename)
+        depth_filename = os.path.join(self.root_dir, '%05d'%(idx), 'fcrn_%05d.ply'%(idx+1))
+        img_filename = os.path.join(self.root_dir, '%05d'%(idx), 'rgb_%05d.jpg'%(idx))
+        # EDIT THIS EDIT THIS EDIT THIS EDIT THIS
+        return sunrgbd_utils.load_depth_points_mat(depth_filename, img_filename)
 
     def get_calibration(self, idx):
         calib_filename = os.path.join(self.calib_dir, '%06d.txt'%(idx))
         return sunrgbd_utils.SUNRGBD_Calibration(calib_filename)
 
     def get_label_objects(self, idx):
-        label_filename = os.path.join(self.label_dir, '%06d.txt'%(idx))
+        label_filename = os.path.join(self.root_dir, 'label/label_%05d.txt'%(idx-1))
+        # This one should be fine
         return sunrgbd_utils.read_sunrgbd_label(label_filename)
 
 def data_viz(data_dir, dump_dir=os.path.join(BASE_DIR, 'data_viz_dump')):  
@@ -191,7 +194,7 @@ def extract_sunrgbd_data(idx_filename, split, output_folder, num_point=20000,
             then three sets of GT votes for up to three objects. If the point is only in one
             object's OBB, then the three GT votes are the same.
     """
-    dataset = sunrgbd_object('./sunrgbd_trainval', split, use_v1=use_v1)
+    dataset = sunrgbd_object('./sunrgbd_plane', split, use_v1=use_v1)
     data_idx_list = [int(line.rstrip()) for line in open(idx_filename)]
 
     if not os.path.exists(output_folder):
@@ -222,8 +225,7 @@ def extract_sunrgbd_data(idx_filename, split, output_folder, num_point=20000,
         else:
             obbs = np.vstack(object_list) # (K,8)
 
-        pc_upright_depth = dataset.get_depth(data_idx)
-        pc_upright_depth_subsampled = pc_util.random_sampling(pc_upright_depth, num_point)
+        pc_upright_depth_subsampled = dataset.get_depth(data_idx)
 
         np.savez_compressed(os.path.join(output_folder,'%06d_pc.npz'%(data_idx)),
             pc=pc_upright_depth_subsampled)
@@ -330,11 +332,11 @@ if __name__=='__main__':
             save_votes=True, num_point=50000, use_v1=True, skip_empty_scene=False)
     
     if args.gen_v2_data:
-        extract_sunrgbd_data(os.path.join(BASE_DIR, 'sunrgbd_trainval/train_data_idx.txt'),
+        extract_sunrgbd_data(os.path.join(BASE_DIR, 'train_data_idx.txt'),
             split = 'training',
             output_folder = os.path.join(BASE_DIR, 'sunrgbd_pc_bbox_votes_50k_v2_train'),
             save_votes=True, num_point=50000, use_v1=False, skip_empty_scene=False)
-        extract_sunrgbd_data(os.path.join(BASE_DIR, 'sunrgbd_trainval/val_data_idx.txt'),
+        extract_sunrgbd_data(os.path.join(BASE_DIR, 'val_data_idx.txt'),
             split = 'training',
             output_folder = os.path.join(BASE_DIR, 'sunrgbd_pc_bbox_votes_50k_v2_val'),
             save_votes=True, num_point=50000, use_v1=False, skip_empty_scene=False)

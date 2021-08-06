@@ -14,9 +14,11 @@ Note: removed basis loading.
 '''
 import numpy as np
 import cv2
+import math
 import os
 import scipy.io as sio # to load .mat files for depth points
-
+import open3d as o3d
+from tqdm import tqdm
 type2class={'bed':0, 'table':1, 'sofa':2, 'chair':3, 'toilet':4, 'desk':5, 'dresser':6, 'night_stand':7, 'bookshelf':8, 'bathtub':9}
 class2type = {type2class[t]:t for t in type2class}
 
@@ -55,7 +57,9 @@ class SUNObject3d(object):
         self.orientation = np.zeros((3,))
         self.orientation[0] = data[11]
         self.orientation[1] = data[12]
-        self.heading_angle = -1 * np.arctan2(self.orientation[1], self.orientation[0])
+        head_vector = np.array([data[11],data[12]])
+        self.heading_angle = (2*math.pi)-np.arccos(np.dot(head_vector, np.asarray([1,0]))
+                /np.linalg.norm(head_vector));
 
 class SUNRGBD_Calibration(object):
     ''' Calibration matrices and utils
@@ -192,8 +196,27 @@ def load_depth_points(depth_filename):
     depth = np.loadtxt(depth_filename)
     return depth
 
-def load_depth_points_mat(depth_filename):
-    depth = sio.loadmat(depth_filename)['instance']
+def load_depth_points_mat(depth_filename, img_filename):
+    # edited from the original version!
+    print(depth_filename)
+    print(img_filename)
+    pcd = o3d.io.read_point_cloud(depth_filename)
+    pts = pcd.points
+    img = cv2.imread(img_filename)
+    height, width, _ = img.shape
+    width_adj = (height*5)//4
+    new_depth = np.zeros(20480)
+    ii, jj = np.meshgrid(np.arange(0,128,1), np.arange(0,160,1))
+    iRemapped = ((ii/128)*height).astype('uint32')
+    jRemapped = ((jj/160)*width_adj+(width-width_adj)//2).astype('uint32')
+    indices = np.stack((iRemapped, jRemapped))
+    colors = img[iRemapped,jRemapped]
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    colors = colors.reshape((20480, 3))
+    if colors.shape[0]>np.asarray(pts).shape[0]:
+        colors = colors[0:np.asarray(pts).shape[0],:]
+    depth = np.hstack((pts, colors))     
     return depth
 
 def random_shift_box2d(box2d, shift_ratio=0.1):
@@ -227,16 +250,14 @@ def my_compute_box_3d(center, size, heading_angle):
     """
     I edited this to work with the way my extraction formats data :D
     """
-    R = rotz(-1*heading_angle)
+    R = rotz(heading_angle)
     l,w,h = size
-    x_corners = [-l,l,l,-l,-l,l,l,-l]
-    y_corners = [w,w,-w,-w,w,w,-w,-w]
-    z_corners = [h,h,h,h,-h,-h,-h,-h]
-    corners_3d = np.dot(R, np.vstack([x_corners, y_corners, z_corners]))
-    corners_3d[0,:] += center[0]
-    corners_3d[1,:] += center[1]
-    corners_3d[2,:] += center[2]
-    return np.transpose(corners_3d)
+    x,y,z = center
+    x_corners = [x-l,x+l,x+l,x-l,x-l,x+l,x+l,x-l]
+    y_corners = [y+w,y+w,y-w,y-w,y+w,y+w,y-w,y-w]
+    z_corners = [z+h,z+h,z+h,z+h,z-h,z-h,z-h,z-h]
+    corners_3d = R@(np.transpose(np.vstack([x_corners, y_corners, z_corners])))
+    return corners_3d
 
 
 def compute_box_3d(obj, calib):
