@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = 32419277267A5C03006508FD /* FastDepth.mlmodel */; };
 		32654E002677E59000D189FA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654DFF2677E59000D189FA /* AppDelegate.swift */; };
 		32654E042677E59000D189FA /* Experience.rcproject in Sources */ = {isa = PBXBuildFile; fileRef = 32654E032677E59000D189FA /* Experience.rcproject */; };
 		32654E062677E59200D189FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32654E052677E59200D189FA /* Assets.xcassets */; };
@@ -68,7 +67,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		32419277267A5C03006508FD /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FastDepth.mlmodel; sourceTree = "<group>"; };
 		32654DFC2677E59000D189FA /* Depth Viewer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Depth Viewer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		32654DFF2677E59000D189FA /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		32654E032677E59000D189FA /* Experience.rcproject */ = {isa = PBXFileReference; lastKnownFileType = file.rcproject; path = Experience.rcproject; sourceTree = "<group>"; };
@@ -213,7 +211,6 @@
 		32654E2E2677E72300D189FA /* mlmodel */ = {
 			isa = PBXGroup;
 			children = (
-				32419277267A5C03006508FD /* FastDepth.mlmodel */,
 			);
 			path = mlmodel;
 			sourceTree = "<group>";
@@ -423,7 +420,6 @@
 				98CEC333268A54B100CE8683 /* InternetConnectionUtil.swift in Sources */,
 				32654E342677F0FE00D189FA /* ARViewProvider.swift in Sources */,
 				32654E502677F6B500D189FA /* MLMultiArray+Image.swift in Sources */,
-				32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */,
 				32654E002677E59000D189FA /* AppDelegate.swift in Sources */,
 				32654E492677F6B500D189FA /* CGImage+CVPixelBuffer.swift in Sources */,
 				32D33879268A40CB00E1CBC0 /* ARExtensions.swift in Sources */,
