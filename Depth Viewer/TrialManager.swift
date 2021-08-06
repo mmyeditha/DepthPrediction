@@ -25,8 +25,9 @@ struct ARFrameDataLog {
     let intrinsics: simd_float3x3
     let trueNorth: simd_float4x4?
     let meshes: [(String, [String: [[Float]]])]?
+    let raycasts: [[Float]]
     
-    init(timestamp: Double, jpegData: Data, heatMapData: Data, depthData: [simd_float4], intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [(String, [String: [[Float]]])]?) {
+    init(timestamp: Double, jpegData: Data, heatMapData: Data, depthData: [simd_float4], intrinsics: simd_float3x3, planes: [ARPlaneAnchor], pose: simd_float4x4, trueNorth: simd_float4x4?, meshes: [(String, [String: [[Float]]])]?, raycasts: [[Float]]) {
         self.timestamp = timestamp
         self.jpegData = jpegData
         self.heatMapData = heatMapData
@@ -36,6 +37,7 @@ struct ARFrameDataLog {
         self.pose = pose
         self.trueNorth = trueNorth
         self.meshes = meshes
+        self.raycasts = raycasts
     }
     
     func metaDataAsJSON()->Data? {
@@ -45,7 +47,7 @@ struct ARFrameDataLog {
             depthTable.append(depthDatum.asArray)
         }
         // Write body of JSON
-        let body : [String: Any] = ["timestamp": timestamp, "depthData": depthTable, "type": "Hi", "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]})]
+        let body : [String: Any] = ["timestamp": timestamp, "depthData": depthTable, "type": "Hi", "pose": pose.asColumnMajorArray, "intrinsics": intrinsics.asColumnMajorArray, "trueNorth": trueNorth != nil ? trueNorth!.asColumnMajorArray : [], "planes": planes.map({["alignment": $0.alignment == .horizontal ? "horizontal": "vertical", "center": $0.center.asArray, "extent": $0.extent.asArray, "transform": $0.transform.asColumnMajorArray]}), "raycast": raycasts]
         if JSONSerialization.isValidJSONObject(body) {
             print("Metadata written into JSON")
             return try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted)
@@ -78,14 +80,16 @@ struct ARFrameDataLog {
             meshProto.id = mesh.0
 
             for (vert, normal) in zip(mesh.1["vertices"]!, mesh.1["normals"]!) {
-                var vertexProto = VertexProto()
-                vertexProto.x = vert[0]
-                vertexProto.y = vert[1]
-                vertexProto.z = vert[2]
-                vertexProto.u = normal[0]
-                vertexProto.v = normal[1]
-                vertexProto.w = normal[2]
-                meshProto.vertices.append(vertexProto)
+                if vert != [] {
+                    var vertexProto = VertexProto()
+                    vertexProto.x = vert[0]
+                    vertexProto.y = vert[1]
+                    vertexProto.z = vert[2]
+                    vertexProto.u = normal[0]
+                    vertexProto.v = normal[1]
+                    vertexProto.w = normal[2]
+                    meshProto.vertices.append(vertexProto)
+                }
             }
             meshesProto.meshes.append(meshProto)
         }

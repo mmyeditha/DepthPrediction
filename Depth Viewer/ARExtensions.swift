@@ -292,13 +292,15 @@ extension ARFrame {
     func getMeshArrays(meshLoggingBehavior: MeshLoggingBehavior)->[(String, [String: [[Float]]])]? {
         // TODO: could maybe speed this up using unsafe C operations and the like.  Probably this is not needed though
         var meshUpdateCount = 0
+        // Boolean flag, when true, sessions do not collect data on added and updated meshes until flag is turned back off at end of function
+        ARViewProvider.shared.meshesAreChanging = true
         if meshLoggingBehavior == .none {
             return nil
         }
         var meshArrays: [(String,[String: [[Float]]])] = []
         for (key, value) in ARViewProvider.shared.meshRemovalFlag {
             if value {
-                meshArrays.append((key.uuidString, ["transform": [matrix_identity_float4x4.columns.0.asArray, matrix_identity_float4x4.columns.1.asArray, matrix_identity_float4x4.columns.2.asArray, matrix_identity_float4x4.columns.3.asArray], "vertices": [[]], "normals": [[]]]))
+                meshArrays.append((key.uuidString, ["transform": [matrix_identity_float4x4.columns.0.asArray, matrix_identity_float4x4.columns.1.asArray, matrix_identity_float4x4.columns.2.asArray, matrix_identity_float4x4.columns.3.asArray], "vertices": [], "normals": []]))
                 ARViewProvider.shared.meshRemovalFlag[key] = false
             }
         }
@@ -323,6 +325,7 @@ extension ARFrame {
             }
         }
         print("updated \(meshUpdateCount)")
+        ARViewProvider.shared.meshesAreChanging = false
         return meshArrays
     }
     
@@ -349,7 +352,9 @@ extension ARFrame {
         if let meshes = meshes {
             print("Mesh count: \(String(describing: meshes.count))")
         }
-        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, heatMapData: heatMapImg, depthData: transformedCloud, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes)
+        
+        let raycasts = ARViewProvider.shared.raycasts
+        return ARFrameDataLog(timestamp: self.timestamp, jpegData: jpegData, heatMapData: heatMapImg, depthData: transformedCloud, intrinsics: camera.intrinsics, planes: anchors.compactMap({$0 as? ARPlaneAnchor}), pose: camera.transform, trueNorth: trueNorthTransform, meshes: meshes, raycasts: raycasts)
     }
 }
 

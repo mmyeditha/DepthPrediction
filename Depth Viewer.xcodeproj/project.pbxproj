@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = 32419277267A5C03006508FD /* FastDepth.mlmodel */; };
 		32654E002677E59000D189FA /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32654DFF2677E59000D189FA /* AppDelegate.swift */; };
 		32654E042677E59000D189FA /* Experience.rcproject in Sources */ = {isa = PBXBuildFile; fileRef = 32654E032677E59000D189FA /* Experience.rcproject */; };
 		32654E062677E59200D189FA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32654E052677E59200D189FA /* Assets.xcassets */; };
@@ -37,7 +36,7 @@
 		32E63CDB268A5A360008DE07 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 32E63CDA268A5A360008DE07 /* FirebaseStorage */; };
 		32E63CDD268A5A360008DE07 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 32E63CDC268A5A360008DE07 /* FirebaseAuth */; };
 		32E63CDF268A5A360008DE07 /* FirebaseMLModelDownloader in Frameworks */ = {isa = PBXBuildFile; productRef = 32E63CDE268A5A360008DE07 /* FirebaseMLModelDownloader */; };
-		980508A2268D105A00A678BF /* Mesh_pbplot.py in Resources */ = {isa = PBXBuildFile; fileRef = 980508A1268D105A00A678BF /* Mesh_pbplot.py */; };
+		98133A0226BD97500069366F /* FCRN.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = 98133A0126BD97500069366F /* FCRN.mlmodel */; };
 		9847B499267A8A9100E81ECD /* PointCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9847B498267A8A9100E81ECD /* PointCloud.swift */; };
 		98CEC31C268A4ED600CE8683 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CEC31B268A4ED600CE8683 /* ContentView.swift */; };
 		98CEC323268A4F1000CE8683 /* build_bindings.sh in Resources */ = {isa = PBXBuildFile; fileRef = 98CEC31E268A4F1000CE8683 /* build_bindings.sh */; };
@@ -69,7 +68,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		32419277267A5C03006508FD /* FastDepth.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FastDepth.mlmodel; sourceTree = "<group>"; };
 		32654DFC2677E59000D189FA /* Depth Viewer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Depth Viewer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		32654DFF2677E59000D189FA /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		32654E032677E59000D189FA /* Experience.rcproject */ = {isa = PBXFileReference; lastKnownFileType = file.rcproject; path = Experience.rcproject; sourceTree = "<group>"; };
@@ -99,7 +97,7 @@
 		32D33878268A40CB00E1CBC0 /* ARExtensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ARExtensions.swift; sourceTree = "<group>"; };
 		32D3387A268A40D100E1CBC0 /* TrialManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrialManager.swift; sourceTree = "<group>"; };
 		32E63CA6268A45C20008DE07 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		980508A1268D105A00A678BF /* Mesh_pbplot.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = Mesh_pbplot.py; sourceTree = "<group>"; };
+		98133A0126BD97500069366F /* FCRN.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = FCRN.mlmodel; sourceTree = "<group>"; };
 		9847B498267A8A9100E81ECD /* PointCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloud.swift; sourceTree = "<group>"; };
 		98CEC31B268A4ED600CE8683 /* ContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		98CEC31E268A4F1000CE8683 /* build_bindings.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = build_bindings.sh; sourceTree = "<group>"; };
@@ -215,7 +213,7 @@
 		32654E2E2677E72300D189FA /* mlmodel */ = {
 			isa = PBXGroup;
 			children = (
-				32419277267A5C03006508FD /* FastDepth.mlmodel */,
+				98133A0126BD97500069366F /* FCRN.mlmodel */,
 			);
 			path = mlmodel;
 			sourceTree = "<group>";
@@ -259,7 +257,6 @@
 				98CEC329268A4F4500CE8683 /* __pycache__ */,
 				98CEC31E268A4F1000CE8683 /* build_bindings.sh */,
 				98CEC320268A4F1000CE8683 /* Mesh_pb2.py */,
-				980508A1268D105A00A678BF /* Mesh_pbplot.py */,
 				98CEC31F268A4F1000CE8683 /* Mesh.pb.swift */,
 				98CEC322268A4F1000CE8683 /* Mesh.proto */,
 			);
@@ -388,7 +385,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				980508A2268D105A00A678BF /* Mesh_pbplot.py in Resources */,
 				98CEC325268A4F1000CE8683 /* Mesh_pb2.py in Resources */,
 				32654E092677E59200D189FA /* Preview Assets.xcassets in Resources */,
 				32654E062677E59200D189FA /* Assets.xcassets in Resources */,
@@ -427,7 +423,6 @@
 				98CEC333268A54B100CE8683 /* InternetConnectionUtil.swift in Sources */,
 				32654E342677F0FE00D189FA /* ARViewProvider.swift in Sources */,
 				32654E502677F6B500D189FA /* MLMultiArray+Image.swift in Sources */,
-				32419278267A5C03006508FD /* FastDepth.mlmodel in Sources */,
 				32654E002677E59000D189FA /* AppDelegate.swift in Sources */,
 				32654E492677F6B500D189FA /* CGImage+CVPixelBuffer.swift in Sources */,
 				32D33879268A40CB00E1CBC0 /* ARExtensions.swift in Sources */,
@@ -436,6 +431,7 @@
 				98CEC32D268A540E00CE8683 /* UploadManager.swift in Sources */,
 				32654E4E2677F6B500D189FA /* CVPixelBuffer+Helpers.swift in Sources */,
 				98CEC32F268A547F00CE8683 /* CGPointUtilities.swift in Sources */,
+				98133A0226BD97500069366F /* FCRN.mlmodel in Sources */,
 				32654E512677F6B500D189FA /* MLMultiArray+Helpers.swift in Sources */,
 				98CEC324268A4F1000CE8683 /* Mesh.pb.swift in Sources */,
 				32654E482677F6B500D189FA /* UIImage+Extensions.swift in Sources */,
@@ -602,9 +598,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Depth Viewer/Preview Content\"";
-				DEVELOPMENT_TEAM = FTGAMQ69T4;
+				DEVELOPMENT_TEAM = 787TUDMR8Q;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = "Depth Viewer/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
@@ -612,10 +610,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.merwan.testFCRN.Depth-Viewer";
+				PRODUCT_BUNDLE_IDENTIFIER = edu.occamlab.DepthViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -624,9 +623,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Depth Viewer/Preview Content\"";
-				DEVELOPMENT_TEAM = FTGAMQ69T4;
+				DEVELOPMENT_TEAM = 787TUDMR8Q;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = "Depth Viewer/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
@@ -634,10 +635,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.merwan.testFCRN.Depth-Viewer";
+				PRODUCT_BUNDLE_IDENTIFIER = edu.occamlab.DepthViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

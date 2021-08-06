@@ -15,43 +15,61 @@ import Vision
 
 struct ContentView : View {
     // @State var liveDepthPrediction = LiveDepthPrediction()
-    @State var sliderValue = 0.5
+//    @State var showingPopover = false
     @ObservedObject var viewProvider: ARViewProvider = ARViewProvider.shared
+    @State dynamic var useFeaturePoints = false
+    
     var body: some View {
-        VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0, content: {
-            Button(action: {
-                ARViewProvider.shared.buttonPress()
-            }, label: {
-                Text("Generate Cloud")
-                    // .offset(x: 0, y: -30.0)
+        VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 1.0, content: {
+            VStack(alignment: .leading, spacing: 0, content: {
+                // Uncomment this toggle to allow a toggle between predicting depth with feature points vs. FCRN
+//                Toggle("Use Feature Points", isOn: $useFeaturePoints)
+//                    .onChange(of: useFeaturePoints, perform: { value in
+//                        viewProvider.useFeaturePoints = useFeaturePoints
+//                    })
+                Button("Meters", action: toggleMeters)
+                Button("Feet", action: toggleFeet)
             })
+            .buttonStyle(BlueButton())
+            
+            // Uncomment this line for a button to capture a CSV of the FCRN depth map to be stored in the AppData
+//            Button("Capture", action: buttonPress)
+            
             ARViewContainer()
             
-            if let img = viewProvider.img {
-                Image(uiImage: img)
-            }
-            Button(action: {
-                ARViewProvider.shared.uploadPress()
-            }, label: {
-                Text("Upload Data")
-            })
-            .padding()
-//            Slider(value: Binding( get: {
-//                self.sliderValue
-//            }, set: { (newVal) in
-//                self.sliderValue = newVal
-//                self.updateSlider()
-//            }))
-//            .padding(.all)
-//            Text("Depth sensitivity: \(sliderValue)")
+            // Uncomment this code to show the depth heatmaps produced by FCRN
+//            if ARViewProvider.shared.img != nil {
+//                Image(uiImage: ARViewProvider.shared.img!)
+//            }
         })
     }
     
-//    // Updates slider value in ARViewProvider
-//    func updateSlider() {
-//        ARViewProvider.shared.updateSliderValue(sliderValue: sliderValue)
-//    }
+    func buttonPress() {
+        viewProvider.buttonPressed = true;
+    }
     
+    func toggleMeters() {
+        viewProvider.meters = true;
+        viewProvider.announce(announcement: "Meters");
+        viewProvider.isAnnouncing = true;
+    }
+    
+    func toggleFeet() {
+        viewProvider.meters = false;
+        viewProvider.announce(announcement: "Feet");
+        viewProvider.isAnnouncing = true;
+    }
+    
+}
+
+struct BlueButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding()
+            .background(Color(red: 0, green: 0, blue: 0.5))
+            .foregroundColor(.white)
+            .clipShape(Capsule())
+    }
 }
 
 

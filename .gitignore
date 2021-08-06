@@ -8,6 +8,7 @@ DerivedData/
 
 ## mlmodel files
 model/
+Depth\ Viewer/mlmodel/
 
 ## plist
 Depth\ Viewer/GoogleService-Info.plist
