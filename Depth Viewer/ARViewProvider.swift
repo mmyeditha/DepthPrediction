@@ -65,14 +65,29 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     var useFeaturePoints = false;
     var isAnnouncing = false;
     
+    // Point Cloud Variables (debugging)
+    // These values be printed out on the ContentView
+    // For more info on what these values are, see the getPointCloud function
+    var depth: Float = 0
+    var zedCameraCoords: Float = 0
+    var pixelImage: UIImage?
+    var meanDepth: Float = 0
+    var meanFeaturePoint: Float = 0
+    var slope: Double = 0
+    var yIntercept: Double = 0
+    var residuals: [Double] = []
+    var meanResiduals: Double = 0
+    var variance: Float = 0
+    var residualSumSquared: Double = 0
+    var deviationsFromMean: [Float] = []
+    var perceivedFeatureDepth: Double = 0
+    
     // - MARK: Haptics variables
     let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
     var lastImpactTime = Date()
     var desiredInterval: Double?
     var hapticTimer: Timer?
     
-//    var frozenImage: UIImage?
-//
     // - MARK: Mesh variables
 //    var meshNeedsUploading: [UUID] = []
 //    var meshRemovalFlagList: [UUID] = []
@@ -118,6 +133,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    // Session runs everytime an ARAnchor is updated
     func session(_ session: ARSession, didUpdate anchors: [ARAnchor]) {
         var allUpdatedMeshes: [UUID] = []
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
@@ -128,6 +144,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    // Session runs everytime an ARAnchor is added
     func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
             if !meshesAreChanging {
@@ -137,6 +154,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         }
     }
     
+    // Session runs everytime an ARAnchor is removed
     func session(_ session: ARSession, didRemove anchors: [ARAnchor]) {
         for id in anchors.compactMap({$0 as? ARMeshAnchor}).map({$0.identifier}) {
             //print("WARNING: MESH DELETED \(id)")
@@ -165,14 +183,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 let height:Int = Int(image.extent.width)
                 CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attrs, &pixelBuffer)
                 context.render(rotatedImage, to: pixelBuffer!)
+                // Line below raycasts the middle pixel, be warned that this severely downgrades performance of the app
                 //self.raycasts = self.raycastMiddlePixel(frame: frame)
                 let uiImage = pixelBuffer!.toUIImage()
-                //print(CVPixelBufferGetWidth(frame.capturedImage))
+                
+                // Beginning the process of predicting depth map through FCRN
                 if let frameee = pixelBuffer {
                     self.predict(with: frameee)
                 }
                 self.frameCount += 1
                 
+                // If we are uploading to Firebase, create a new datalog and add it to trial
                 if self.areWeUploadingToFirebase {
                     // Capture every tenth frame and prep it for uploading to firebase
                     if self.frameCount % self.frameCaptureRate == 0 {
@@ -196,16 +217,17 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         for p in xyz {
                             transformedCloud.append(simd_float4(simd_normalize(p.0), simd_length(p.0)))
                         }
-                        self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv", frame: frame)
+                        // Write CSV of pointcloud to the AppData
+                        self.write(pointCloud: transformedCloud, fileName: "lidar_\(self.sessionCount).csv")
                     }
                 }
                 
-                // Add to count
+                // Whether phone has LiDAR or not, collect pointcloud from FCRN data and log it if prompted
                 if let arr = self.imgArr {
-                    // Code is executed no matter if phone is a LiDAR or not when button is pressed
                     if self.buttonPressed {
                         let ptCloud = self.getPointCloud(frame: frame, imgArray: arr)
-                        self.write(pointCloud: ptCloud, fileName: "\(NSTimeIntervalSince1970)_mypointcloud\(self.sessionCount).csv", frame: frame)
+                        self.write(pointCloud: ptCloud.0, fileName: "mypointcloud\(self.sessionCount).csv")
+                        self.writePixels(points: ptCloud.1, fileName: "pixels\(self.sessionCount).csv")
                         print("Wrote the vector data")
                         //print(ptCloud)
                         let image = self.convert(cmage: CIImage(cvPixelBuffer: framee))
@@ -216,13 +238,9 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                             print("Wrote the depth in session")
                         }
                         // Capture raw feature points into a [[Float]] and write them
-                        session.getCurrentWorldMap() {
-                            (map, error) in
-                            if let map = map {
-                                let features = map.rawFeaturePoints.points
-                                for feature in features {
-                                    self.featureMat.append([feature[0], feature[1], feature[2], 1.0])
-                                }
+                        if let rawPoints = frame.rawFeaturePoints {
+                            for feature in rawPoints.points {
+                                self.featureMat.append([feature[0], feature[1], feature[2], 1.0])
                             }
                         }
                         self.writeFeaturePoints(features: self.featureMat, session: self.sessionCount, frame: frame)
@@ -265,12 +283,16 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
             // Prints midpoint, useful for haptics and grayscale calibration
             if let imgArr = self.imgArr {
                 var midpt = imgArr[80][64]
+                // If we are using feature points to predict depth instead of FCRN...
                 if useFeaturePoints {
                     var minAngle: Float?
                     var distanceAtMinAngle: Float?
                     if let frame = arView.session.currentFrame, let pointCloud = frame.rawFeaturePoints {
+                        // Optical axis is vector pointing directly out of center of frame
                         let opticalAxis = -simd_float3(frame.camera.transform.columns.2.x, frame.camera.transform.columns.2.y, frame.camera.transform.columns.2.z)
+                        // Camera center tracks pose of the camera
                         let cameraCenter = simd_float3(frame.camera.transform.columns.3.x, frame.camera.transform.columns.3.y, frame.camera.transform.columns.3.z)
+                        // For every feature point, find the angle between the vector of that point and the optical axis, determine depth of the center by the z-value of the point with the acutest angle
                         for pt in pointCloud.points {
                             let relativePosition = pt - cameraCenter
                             let angle = acos(simd_dot(relativePosition, opticalAxis)/(simd_length(relativePosition) * simd_length(opticalAxis)))
@@ -285,14 +307,20 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         midpt = Float(distanceAtMinAngle!)
                     }
 //                    else {
-//                        midpt = -5.0
+//                        midpt = -1.0
 //                    }
                 }
 //                if self.isAnnouncing && midpt < 0 {
 //                    self.announce(announcement: "cannot detect any feature points in this direction")
 //                }
+                
+                // Announce the distances
                 if self.isAnnouncing && -self.lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
                     self.lastAnnouncementTime = Date()
+                    // This statement was for debugging, check out the getPointCloud function for what is going on here
+//                    if let frame = arView.session.currentFrame {
+//                        let _ = getPointCloud(frame: frame, imgArray: imgArr)
+//                    }
                     if self.meters {
                         self.announce(announcement: String(format: "%.1f", midpt))
                         print("\(midpt) meters")
@@ -302,7 +330,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                         print("\(midptFeet) feet")
                     }
                 }
-                //if -lastAnnouncementTime.timeIntervalSinceNow > ARViewProvider.announcementInterval {
                 DispatchQueue.main.async {
                     // Sends the signal that the variable is changing in the main Dispatch Queue
                     self.objectWillChange.send()
@@ -362,57 +389,8 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                 self.confidence = heatmaps[index].floatValue
                 guard self.confidence! > 0 else { continue }
                 convertedHeatmap[j][i] = self.confidence!
-//                if confidence > 0.25 {
-//                    convertedHeatmap[j][i] = 1
-//                } else {
-//                    convertedHeatmap[j][i] = confidence
-//                }
-//                if i == Int(heatmap_w/2) && j == Int(heatmap_h/2) {
-//                    //desiredInterval = confidence/5
-//                    print("depth in the center is \(confidence)")
-//                }
-//                if minimumValue > self.confidence! {
-//                    minimumValue = self.confidence!
-//                }
-//                if maximumValue < self.confidence! {
-//                    maximumValue = self.confidence!
-//                }
             }
         }
-//        let minmaxGap = maximumValue - minimumValue
-//
-//        for i in 0..<heatmap_w {
-//            for j in 0..<heatmap_h {
-//                convertedHeatmap[j][i] = (convertedHeatmap[j][i] - minimumValue) / minmaxGap
-//            }
-//        }
-//
-//        // Calculation of how many beeps to run from
-//        let midpoint = convertedHeatmap[Int(heatmap_w/2)][Int(heatmap_h/2)]
-//        //let mid_Val = convertedHeatmap.max() - convertedHeatmap.min()
-//
-//        var maxes: Array<Double> = []
-//        var mins: Array<Double> = []
-//
-//        for i in 0...127 {
-//            do {
-//            maxes.append(convertedHeatmap[i].max()!)
-//            mins.append(convertedHeatmap[i].min()!)
-//            } catch {
-//            print("Error calculating max for \(i)")
-//            }
-//        }
-//
-////        print(maxes.max())
-////        print(mins.min())
-////        if midpoint > 0.25 {
-//        desiredInterval = (midpoint/maxes.max()!)
-////        } else {
-////            desiredInterval = 100000
-////        }
-//
-//        // print(desiredInterval)
-//
         return convertedHeatmap
     }
     
@@ -457,7 +435,7 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         return PointCloud(width: width, height: height, depthData: depthCopy)
     }
     
-    func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> [SIMD4<Float>] {
+    func getPointCloud(frame: ARFrame, imgArray: [[Float]]) -> ([SIMD4<Float>], [SIMD4<Float>]) {
         // Intrinsic matrix, refreshes often to update focal lengths with image stabilization
         let intrinsics = frame.camera.intrinsics
         // Transformation matrix to convert to global frame
@@ -478,8 +456,9 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
 
                     // Convert pixel to vector and normalize
                     let ptVec: SIMD3 = [iRemapped, jRemapped, 1]
-                    var vec = simd_normalize(intrinsics.inverse * ptVec)
+                    var vec = intrinsics.inverse * ptVec
                     // Sets center of 4:3 image to have actual values, sides of 4:3 images are black
+                    // (i,j) -> vec, rotation*simd_float4(vec[0], -vec[1], -vec[2], 1) -> (i,j)
                     if i < 143 && i > 16 {
                         vec *= imgArray[i-16][j]
                     } else {
@@ -489,10 +468,102 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
                     
                 }
             }
-        return ptCloud
+        
+        // Code below experiments with the idea of mapping ARFeaturePoints to the FCRN pointcloud and finding the relationships between the two
+        // Goal of this experimentation is to see if ARFeaturePoints can be used to modify the FCRN pointclouds and thus the results of the depth predictor
+        var featurePixels: [SIMD4<Float>] = []
+        
+        UIGraphicsBeginImageContextWithOptions(
+            CGSize(width: 160, height: 128), true, 1)
+        let context = UIGraphicsGetCurrentContext()!
+        
+        for featurePoint in frame.rawFeaturePoints?.points ?? [] {
+            let cameraCoords = frame.camera.transform.inverse * simd_float4(featurePoint, 1)
+            let x = cameraCoords.x / cameraCoords.z
+            let y = cameraCoords.y / cameraCoords.z
+            let z = cameraCoords.z / cameraCoords.z
+            let cx = frame.camera.intrinsics.columns.2.x
+            let cy = frame.camera.intrinsics.columns.2.y
+            let fx = frame.camera.intrinsics.columns.0.x
+            let fy = frame.camera.intrinsics.columns.1.y
+            // Equation derived from Symbolic Math Toolbox, express relationship between camera pixels (FCRN depth heatmap) and points in space (ARFeaturePoints)
+            //[(159*cx + 159*fx*y)/w, (127*cy - 127*fy*x)/h]
+            // TODO: x-axis flips when i equation is changed to what it should be (i.e. - is changed to +
+            let i = Int((159*cx - 159*fx*y) / Float(CVPixelBufferGetWidth(frame.capturedImage)))
+            let j = Int((127*cy - 127*fy*x) / Float(CVPixelBufferGetHeight(frame.capturedImage)))
+            
+            if i < 143 && i > 16 && j > 0 && j < 127 {
+                self.depth = -imgArray[i-16][j]
+                self.zedCameraCoords = cameraCoords.z
+                print("estimated z", depth, "feature point z", cameraCoords.z)
+                featurePixels.append(simd_float4(Float(i), Float(j), depth, cameraCoords.z))
+            }
+            
+            context.setFillColor(UIColor.red.cgColor)
+            context.setStrokeColor(UIColor.green.cgColor)
+            context.setLineWidth(1)
+
+            // TODO: not sure why i would need to be subtracted from 159/160
+            let rectangle = CGRect(x: i, y: j, width: 2, height: 2)
+            context.addEllipse(in: rectangle)
+            context.drawPath(using: .fillStroke)
+            
+        }
+        
+        // Finding means of the depth, best fit lines, etc. are for debugging purposes to see if this result is feasible, needs more testing
+        // Advisable to print these values out onto ContentView and screen record it to see results overtime, all of these variables are global
+        self.meanDepth = featurePixels.map({$0.z}).reduce(0, {x,y in x + y/Float(featurePixels.count)})
+        self.meanFeaturePoint = featurePixels.map({$0.w}).reduce(0, {x,y in x + y/Float(featurePixels.count)})
+        var numeratorSum: Float = 0
+        var denomSum1: Float = 0
+        var denomSum2: Float = 0
+        
+        for depth in featurePixels {
+            numeratorSum += (depth[2] - self.meanDepth)*(depth[3] - self.meanFeaturePoint)
+            denomSum1 += (depth[2] - self.meanDepth)*(depth[2] - self.meanDepth)
+            denomSum2 += (depth[3] - self.meanFeaturePoint)*(depth[3] - self.meanFeaturePoint)
+        }
+        
+        let corr = Double(numeratorSum) / sqrt(Double(denomSum1*denomSum2))
+        print("correlation: ", corr)
+        
+        // Compute m and b of the best fit line
+        let m = Double(numeratorSum) / Double(denomSum1)
+        let b = Double(self.meanFeaturePoint) - m*Double(self.meanDepth)
+        print("line of best fit: y = \(m)x + \(b)")
+        self.slope = m
+        self.yIntercept = b
+        
+        for p in featurePixels {
+            print("\(p.z), \(p.w)")
+        }
+        
+        self.residuals = featurePixels.map({Double($0.z)*m + b - Double($0.w)})
+        self.meanResiduals = self.residuals.reduce(0.0, {x,y in x + y/Double(residuals.count)})
+        self.variance = featurePixels.map({($0.z - self.meanDepth)*($0.z-self.meanDepth)}).reduce(0.0, {x, y in x + y/Float(featurePixels.count)})
+        self.residualSumSquared = self.residuals.map({($0*$0) / Double(residuals.count)}).reduce(0.0, {x,y in x+y})
+        self.deviationsFromMean = featurePixels.map({$0.z - self.meanDepth})
+        print("variance \(self.variance)")
+        // Calculate depth of center pixel through equation
+        self.perceivedFeatureDepth = m*Double(imgArray[80][64]) + b
+        print("middle pixel FCRN depth ", imgArray[80][64])
+        print("middle pixel perceived ", self.perceivedFeatureDepth)
+        
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        self.pixelImage = image
+        UIGraphicsEndImageContext()
+        
+        if meters {
+            announce(announcement: String(format: "%.1f", self.perceivedFeatureDepth))
+        } else {
+            let perceivedFeatureDepthInFeet = 3.28 * self.perceivedFeatureDepth
+            announce(announcement: String(format: "%.1f", perceivedFeatureDepthInFeet))
+        }
+        
+        return (ptCloud, featurePixels)
     }
     
-    /// Raycasts from camera to tag and places tag on the nearest mesh if the device supports LiDAR
+    /// Raycasts from camera to objects in frame
     func raycastMiddlePixel(frame: ARFrame) -> [[Float]] {
         let startFunctionTime = Date()
         var totalTimeRaycasting = 0.0
@@ -526,7 +597,6 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
         //            return raycastTagTransform
                 } else {
                     point = [Float(i), Float(j), 0.0]
-                    //print(i, j, 0.0)
                 }
                 raycasts.append(point)
             }
@@ -619,63 +689,76 @@ class ARViewProvider: NSObject, ARSessionDelegate, ObservableObject {
     }
     
     // - MARK: Writing data
-        // Write point cloud into a file for further review
-        func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String, frame: ARFrame) -> Void {
-            // Initialize a string where data will be stored line-by-line
-            var pointCloudData = ""
-            for p in ptCloud {
-                pointCloudData += "\(p.x),\(p.y),\(p.z),\(p.w)\n"
-            }
-            // Save data to a file in AppData
-            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let url = documentsDirectory.appendingPathComponent(fileName)
-            if let cloudData = pointCloudData.data(using: .utf8) {
-                try? cloudData.write(to: url, options: [.atomic])
+    // Write point cloud into a file for further review
+    func write(pointCloud ptCloud: [SIMD4<Float>], fileName: String) -> Void {
+        // Initialize a string where data will be stored line-by-line
+        var pointCloudData = ""
+        for p in ptCloud {
+            pointCloudData += "\(p.x),\(p.y),\(p.z),\(p.w)\n"
+        }
+        // Save data to a file in AppData
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let url = documentsDirectory.appendingPathComponent(fileName)
+        if let cloudData = pointCloudData.data(using: .utf8) {
+            try? cloudData.write(to: url, options: [.atomic])
+        }
+    }
+    
+    func writeImg(image: UIImage, session: Int, label: String) {
+        // Writes image to application data
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let fileName = "\(NSTimeIntervalSince1970)\(label)image\(session).jpg"
+        let fileURL = documentsDirectory.appendingPathComponent(fileName)
+        if let data = image.jpegData(compressionQuality:  1.0),
+          !FileManager.default.fileExists(atPath: fileURL.path) {
+            do {
+                // writes the image data to disk
+                try data.write(to: fileURL)
+                //print("file saved")
+            } catch {
+                print("error saving file:", error)
             }
         }
+    }
+    
+    func writePixels(points: [SIMD4<Float>], fileName: String) {
+        // Initialize a string where data will be stored line-by-line
+        var featurePixelData = ""
+        for p in points {
+            featurePixelData += "\(p.x),\(p.y),\(p.z),\(p.w)\n"
+        }
+        // Save data to a file in AppData
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let url = documentsDirectory.appendingPathComponent(fileName)
+        if let cloudData = featurePixelData.data(using: .utf8) {
+            try? cloudData.write(to: url, options: [.atomic])
+        }
+    }
         
-        func writeImg(image: UIImage, session: Int, label: String) {
-            // Writes image to application data
-            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let fileName = "\(NSTimeIntervalSince1970)\(label)image\(session).jpg"
-            let fileURL = documentsDirectory.appendingPathComponent(fileName)
-            if let data = image.jpegData(compressionQuality:  1.0),
-              !FileManager.default.fileExists(atPath: fileURL.path) {
-                do {
-                    // writes the image data to disk
-                    try data.write(to: fileURL)
-                    //print("file saved")
-                } catch {
-                    print("error saving file:", error)
-                }
-            }
+    // Writes both the raw feature points of a session and the transform matrix
+    func writeFeaturePoints(features: [[Float]], session: Int, frame: ARFrame) -> Void {
+        var featureString = ""
+        for feature in features {
+            featureString += "\(feature[0]), \(feature[1]), \(feature[2]), \(feature[3])\n"
         }
-        
-        // Writes both the raw feature points of a session and the transform matrix
-        func writeFeaturePoints(features: [[Float]], session: Int, frame: ARFrame) -> Void {
-            var featureString = ""
-            for feature in features {
-                featureString += "\(feature[0]), \(feature[1]), \(feature[2]), \(feature[3])\n"
-            }
-            // Writes a csv file to documents directory in application data
-            let transform = frame.camera.transform
-            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            // Writes the raw feature points into the documents directory
-            let featureURL = documentsDirectory.appendingPathComponent("features_\(session).csv")
-            if let featuresData = featureString.data(using: .utf8) {
-                try? featuresData.write(to: featureURL, options: [.atomic])
-            }
-            // Converts transform matrix into a string that can be written into a csv file
-            let transformUrl = documentsDirectory.appendingPathComponent("transformMatrix_\(session).csv")
-            var transformString = ""
-            for i in 0...3 {
-                let row = transform[i]
-                transformString += "\(row[0]), \(row[1]), \(row[2]), \(row[3])\n"
-            }
-            // Writes it into documents directory
-            if let rowData = transformString.data(using: .utf8) {
-                try? rowData.write(to: transformUrl, options: [.atomic])
-            }
-            
+        // Writes a csv file to documents directory in application data
+        let transform = frame.camera.transform
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        // Writes the raw feature points into the documents directory
+        let featureURL = documentsDirectory.appendingPathComponent("features_\(session).csv")
+        if let featuresData = featureString.data(using: .utf8) {
+            try? featuresData.write(to: featureURL, options: [.atomic])
         }
+        // Converts transform matrix into a string that can be written into a csv file
+        let transformUrl = documentsDirectory.appendingPathComponent("transformMatrix_\(session).csv")
+        var transformString = ""
+        for i in 0...3 {
+            let row = transform[i]
+            transformString += "\(row[0]), \(row[1]), \(row[2]), \(row[3])\n"
+        }
+        // Writes it into documents directory
+        if let rowData = transformString.data(using: .utf8) {
+            try? rowData.write(to: transformUrl, options: [.atomic])
+        }
+    }
 }

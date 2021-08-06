@@ -20,28 +20,26 @@ struct ContentView : View {
     @State dynamic var useFeaturePoints = false
     
     var body: some View {
-        VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0, content: {
+        VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 1.0, content: {
             VStack(alignment: .leading, spacing: 0, content: {
-                Toggle("Use Feature Points", isOn: $useFeaturePoints)
-                    .onChange(of: useFeaturePoints, perform: { value in
-                        viewProvider.useFeaturePoints = useFeaturePoints
-                    })
+                // Uncomment this toggle to allow a toggle between predicting depth with feature points vs. FCRN
+//                Toggle("Use Feature Points", isOn: $useFeaturePoints)
+//                    .onChange(of: useFeaturePoints, perform: { value in
+//                        viewProvider.useFeaturePoints = useFeaturePoints
+//                    })
                 Button("Meters", action: toggleMeters)
                 Button("Feet", action: toggleFeet)
             })
             .buttonStyle(BlueButton())
-            //Button("Capture", action: buttonPress)
+            
+            // Uncomment this line for a button to capture a CSV of the FCRN depth map to be stored in the AppData
+//            Button("Capture", action: buttonPress)
+            
             ARViewContainer()
+            
+            // Uncomment this code to show the depth heatmaps produced by FCRN
 //            if ARViewProvider.shared.img != nil {
 //                Image(uiImage: ARViewProvider.shared.img!)
-//            }
-//            Button("Freeze Image") {
-//                ARViewProvider.shared.frozenImage = ARViewProvider.shared.arView.session.currentFrame?.capturedImage.toUIImage()
-//                print("frozenImage", ARViewProvider.shared.frozenImage)
-//                showingPopover = true
-//            }
-//            .popover(isPresented: $showingPopover) {
-//                Image(uiImage: ARViewProvider.shared.frozenImage!).accessibility(hidden: false)
 //            }
         })
     }
