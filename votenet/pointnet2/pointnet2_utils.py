@@ -29,7 +29,7 @@ except ImportError:
         raise ImportError(
             "Could not import _ext module.\n"
             "Please see the setup instructions in the README: "
-            "https://github.com/erikwijmans/Pointnet2_PyTorch/blob/master/README.rst"
+            "https://github.com/erikwijmans/Poipntnet2_PyTorch/blob/master/README.rst"
         )
 
 if False:

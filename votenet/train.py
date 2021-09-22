@@ -23,12 +23,16 @@ import numpy as np
 from datetime import datetime
 import argparse
 import importlib
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+# debug purposes, can be removed later
+import math
+import pdb;
+
+torch.autograd.set_detect_anomaly(True)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = BASE_DIR
@@ -51,6 +55,7 @@ parser.add_argument('--vote_factor', type=int, default=1, help='Vote factor [def
 parser.add_argument('--cluster_sampling', default='vote_fps', help='Sampling strategy for vote clusters: vote_fps, seed_fps, random [default: vote_fps]')
 parser.add_argument('--ap_iou_thresh', type=float, default=0.25, help='AP IoU threshold [default: 0.25]')
 parser.add_argument('--max_epoch', type=int, default=180, help='Epoch to run [default: 180]')
+# batch size needs to be 3 on the 1060 GPU. Learning rate should be adjusted accordingly (idk how tho?)
 parser.add_argument('--batch_size', type=int, default=8, help='Batch Size during training [default: 8]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--weight_decay', type=float, default=0, help='Optimization L2 weight decay [default: 0]')
@@ -234,9 +239,19 @@ def train_one_epoch():
             assert(key not in end_points)
             end_points[key] = batch_data_label[key]
         loss, end_points = criterion(end_points, DATASET_CONFIG)
-        loss.backward()
-        optimizer.step()
-
+        try:
+            loss.backward()
+            optimizer.step()
+        except:
+            optimizer.zero_grad()
+            pdb.set_trace()
+            print(torch.cuda.memory_allocated())
+            print(torch.cuda.memory_cached())
+            # optimizer.step clears intermediate data from device, might be screwed up here
+            # torch.cuda.memory_allocated()
+            # torch.cuda.memory_cached()
+            continue
+        
         # Accumulate statistics and print out
         for key in end_points:
             if 'loss' in key or 'acc' in key or 'ratio' in key:
@@ -249,45 +264,62 @@ def train_one_epoch():
             TRAIN_VISUALIZER.log_scalars({key:stat_dict[key]/batch_interval for key in stat_dict},
                 (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE)
             for key in sorted(stat_dict.keys()):
+                # added in checks for when nans occur :(
+                print(f'stat_dict: {math.isnan(stat_dict[key])}, batch_interval: {math.isnan(batch_interval)}, zero?: {batch_interval==0}')
+                if math.isnan(stat_dict[key]/batch_interval):
+                    print('an ouchy happened')
+                    idx = batch_data_label['scan_idx']
+                    print(f'idx: {idx}')
+                    pdb.set_trace()
+
                 log_string('mean %s: %f'%(key, stat_dict[key]/batch_interval))
                 stat_dict[key] = 0
+
 
 def evaluate_one_epoch():
     stat_dict = {} # collect statistics
     ap_calculator = APCalculator(ap_iou_thresh=FLAGS.ap_iou_thresh,
         class2type_map=DATASET_CONFIG.class2type)
-    net.eval() # set model to eval mode (for bn and dp)
-    for batch_idx, batch_data_label in enumerate(TEST_DATALOADER):
-        if batch_idx % 10 == 0:
-            print('Eval batch: %d'%(batch_idx))
-        for key in batch_data_label:
-            batch_data_label[key] = batch_data_label[key].to(device)
-        
-        # Forward pass
-        inputs = {'point_clouds': batch_data_label['point_clouds']}
-        with torch.no_grad():
-            end_points = net(inputs)
+    net.eval()# set model to eval mode (for bn and dp)
+    try:
+        for batch_idx, batch_data_label in enumerate(TEST_DATALOADER):
+            print(f'batch_idx: {batch_idx}')
+            if batch_idx % 10 == 0:
+                print('Eval batch: %d'%(batch_idx))
+            for key in batch_data_label:
+                batch_data_label[key] = batch_data_label[key].to(device)
+            
+            # Forward pass
+            try:
+                inputs = {'point_clouds': batch_data_label['point_clouds']}
+                with torch.no_grad():
+                    end_points = net(inputs)
+            except:
+                print(batch_idx)
+                print(batch_data_label['scan_idx'])
+                pdb.set_trace()
 
-        # Compute loss
-        for key in batch_data_label:
-            assert(key not in end_points)
-            end_points[key] = batch_data_label[key]
-        loss, end_points = criterion(end_points, DATASET_CONFIG)
+            # Compute loss
+            for key in batch_data_label:
+                assert(key not in end_points)
+                end_points[key] = batch_data_label[key]
+            loss, end_points = criterion(end_points, DATASET_CONFIG)
 
-        # Accumulate statistics and print out
-        for key in end_points:
-            if 'loss' in key or 'acc' in key or 'ratio' in key:
-                if key not in stat_dict: stat_dict[key] = 0
-                stat_dict[key] += end_points[key].item()
+            # Accumulate statistics and print out
+            for key in end_points:
+                if 'loss' in key or 'acc' in key or 'ratio' in key:
+                    if key not in stat_dict: stat_dict[key] = 0
+                    stat_dict[key] += end_points[key].item()
 
-        batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT) 
-        batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT) 
-        ap_calculator.step(batch_pred_map_cls, batch_gt_map_cls)
+            batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT) 
+            batch_gt_map_cls = parse_groundtruths(end_points, CONFIG_DICT) 
+            ap_calculator.step(batch_pred_map_cls, batch_gt_map_cls)
 
-        # Dump evaluation results for visualization
-        if FLAGS.dump_results and batch_idx == 0 and EPOCH_CNT %10 == 0:
-            MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG) 
-
+            # Dump evaluation results for visualization
+            if FLAGS.dump_results and batch_idx == 0 and EPOCH_CNT %10 == 0:
+                MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG) 
+    except:
+        print('errorQ')
     # Log statistics
     TEST_VISUALIZER.log_scalars({key:stat_dict[key]/float(batch_idx+1) for key in stat_dict},
         (EPOCH_CNT+1)*len(TRAIN_DATALOADER)*BATCH_SIZE)
@@ -329,6 +361,13 @@ def train(start_epoch):
         except:
             save_dict['model_state_dict'] = net.state_dict()
         torch.save(save_dict, os.path.join(LOG_DIR, 'checkpoint.tar'))
+
+def file_check(batch_info):
+    """
+    batch_info is a single dictionary entry of batch_data_label
+    """
+    pcd_0 = batch_info['point_clouds']
+    pcd_1 = batch_info['point_clouds']
 
 if __name__=='__main__':
     train(start_epoch)

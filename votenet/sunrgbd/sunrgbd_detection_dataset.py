@@ -5,22 +5,19 @@
 # LICENSE file in the root directory of this source tree.
 
 """ Dataset for 3D object detection on SUN RGB-D (with support of vote supervision).
-
 A sunrgbd oriented bounding box is parameterized by (cx,cy,cz), (l,w,h) -- (dx,dy,dz) in upright depth coord
 (Z is up, Y is forward, X is right ward), heading angle (from +X rotating to -Y) and semantic class
-
 Point clouds are in **upright_depth coordinate (X right, Y forward, Z upward)**
 Return heading class, heading residual, size class and size residual for 3D bounding boxes.
 Oriented bounding box is parameterized by (cx,cy,cz), (l,w,h), heading_angle and semantic class label.
 (cx,cy,cz) is in upright depth coordinate
 (l,h,w) are *half length* of the object sizes
 The heading angle is a rotation rad from +X rotating towards -Y. (+X is 0, -Y is pi/2)
-
 Author: Charles R. Qi
 Date: 2019
-
 """
 import os
+import pdb
 import sys
 import numpy as np
 from torch.utils.data import Dataset
@@ -94,10 +91,15 @@ class SunrgbdDetectionVotesDataset(Dataset):
             point_cloud[:,3:] = (point_cloud[:,3:]-MEAN_COLOR_RGB)
 
         if self.use_height:
-            floor_height = np.percentile(point_cloud[:,2],0.99)
-            height = point_cloud[:,2] - floor_height
-            point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) # (N,4) or (N,7)
-
+            try:
+                floor_height = np.percentile(point_cloud[:,2],0.99)
+                height = point_cloud[:,2] - floor_height
+                point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) # (N,4) or (N,7)
+            except:
+                print(os.path.join(self.data_path, scan_name))
+                print(idx)
+                pdb.set_trace()
+                
         # ------------------------------- DATA AUGMENTATION ------------------------------
         if self.augment:
             if np.random.random() > 0.5:

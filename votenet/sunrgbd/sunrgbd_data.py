@@ -26,7 +26,7 @@ sys.path.append(os.path.join(BASE_DIR, '../utils/'))
 import pc_util
 import sunrgbd_utils
 
-DEFAULT_TYPE_WHITELIST = ['bed','table','sofa','chair','toilet','desk','dresser','night_stand','bookshelf','bathtub']
+DEFAULT_TYPE_WHITELIST = ['wall', 'ceiling', 'floor', 'other']
 
 class sunrgbd_object(object):
     ''' Load and parse object data '''
