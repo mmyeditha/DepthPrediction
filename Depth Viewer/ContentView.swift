@@ -23,10 +23,10 @@ struct ContentView : View {
         VStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 1.0, content: {
             VStack(alignment: .leading, spacing: 0, content: {
                 // Uncomment this toggle to allow a toggle between predicting depth with feature points vs. FCRN
-//                Toggle("Use Feature Points", isOn: $useFeaturePoints)
-//                    .onChange(of: useFeaturePoints, perform: { value in
-//                        viewProvider.useFeaturePoints = useFeaturePoints
-//                    })
+                Toggle("Use Feature Points", isOn: $useFeaturePoints)
+                    .onChange(of: useFeaturePoints, perform: { value in
+                        viewProvider.useFeaturePoints = useFeaturePoints
+                    })
                 Button("Meters", action: toggleMeters)
                 Button("Feet", action: toggleFeet)
             })
@@ -38,9 +38,9 @@ struct ContentView : View {
             ARViewContainer()
             
             // Uncomment this code to show the depth heatmaps produced by FCRN
-//            if ARViewProvider.shared.img != nil {
-//                Image(uiImage: ARViewProvider.shared.img!)
-//            }
+            if ARViewProvider.shared.img != nil {
+                Image(uiImage: ARViewProvider.shared.img!)
+            }
         })
     }
     
